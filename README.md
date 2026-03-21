@@ -1,0 +1,227 @@
+# AI Trading Signal Platform
+
+Event-driven AI trading signal platform using Kafka, Redis, and MySQL.
+
+---
+## Overview
+
+실시간 시장 데이터와 뉴스 데이터를 기반으로 **4가지 핵심 신호**를 탐지하고, Kafka를 통해 이벤트를 전달하여 알림 및 향후 자동매매로 확장 가능한 시스템입니다.
+
+초기 단계에서는 자동 거래를 수행하지 않고, **신호 탐지 → AI 검증 → 알림 → 이력 저장 → Shadow Trading** 흐름을 구축하여 신호의 유효성을 검증하는 데 집중합니다.
+
+---
+## Signal Detection Logic
+
+다음 4가지 조건을 AI가 분석하여 거래 신호를 생성합니다.
+
+| # | 신호 | 설명                              |
+|---|------|---------------------------------|
+| 1 | **거래량 급등** | 전일 대비 거래량이 급격히 증가한 종목 탐지        |
+| 2 | **뉴스 급증** | 단시간 내 관련 뉴스·공시가 대거 발생한 종목 탐지    |
+| 3 | **거래대기 물량 급증** | 장 마감 이후 시간외 매수 대기 잔량이 급증한 종목 탐지 |
+| 4 | **갭상승 확인** | 참고 지표(보조 신호)                    |
+
+신호는 특정 시점(09:00)에 제한되지 않고, 조건이 충족되는 즉시 이벤트 기반으로 생성 및 알림이 발송됩니다.
+
+향후 AI 모델이 과거 신호의 성공/실패 이력을 학습해 정확도를 고도화합니다.
+
+---
+## Architecture
+
+```
+[External Data Sources]
+  ├─ Market Data        (가격, 거래량)
+  ├─ News / Disclosure  (뉴스, 공시)
+  └─ After-hours Data   (시간외 거래대기 물량, 갭 데이터)
+          │
+          ▼
+[collector-service]
+  ├─ 데이터 수집 및 최소 정규화
+  ├─ 영업일 / 장중·장외 시간 판단
+  └─ Kafka raw 이벤트 발행
+          │
+          ▼
+        Kafka (Raw Topics)
+  ├─ raw.market         ← 가격 / 거래량
+  ├─ raw.news           ← 뉴스 / 공시
+  └─ raw.after-hours    ← 시간외 거래대기 물량 / 갭 데이터
+          │
+          ▼
+[signal-service]  ← 핵심 서비스
+  ├─ [scanner]    원시 조건 탐지 (거래량 / 뉴스 / 거래대기 / 갭상승)
+  ├─ [scorer]     가중 점수 계산 및 신호 강도 산출
+  └─ [validator]  Redis dedup / TTL / 정책 필터링
+          │
+          ▼
+        Kafka (Signal Topics)
+  ├─ signal.detected
+  ├─ signal.rejected
+  ├─ signal.detected.dlq   ← 처리 실패 메시지 보관
+  └─ raw.*.dlq             ← raw 토픽 처리 실패 메시지 보관
+          │
+   ┌──────┼──────────────────┐
+   ▼      ▼                  ▼
+[notification]  [history]  [trade-planning]
+  알림 발송       이력 저장    Shadow Trading
+  Telegram/Slack  MySQL       (실제 주문 없음)
+
+   Redis (dedup / TTL / cache / cooldown)
+```
+
+---
+## Tech Stack
+
+| 분류 | 기술 |
+|------|------|
+| Backend | Java, Spring Boot |
+| Messaging | Apache Kafka |
+| Cache / State | Redis |
+| Database | MySQL |
+| Infrastructure | Docker Compose |
+| AI / 분석 | Python (Claude API 또는 자체 ML 모델) |
+| 모니터링 | Prometheus + Grafana |
+| 로깅 | 구조화 로그(JSON) + ELK Stack |
+
+---
+## Services
+
+### 1. collector-service
+- 시장 데이터 / 뉴스 / 시간외 거래대기 물량 수집
+- 최소한의 정규화 수행
+- Kafka `raw.*` 토픽으로 이벤트 발행
+
+### 2. signal-service
+내부를 3개 모듈로 분리하여 단일 장애 지점(SPOF) 위험 최소화
+
+| 모듈 | 역할 |
+|------|------|
+| scanner | 4가지 원시 조건 탐지 담당 |
+| scorer | 조건별 가중 점수 계산 및 신호 강도 산출 |
+| validator | Redis dedup / cooldown / TTL / 정책 검증 |
+
+### 3. notification-service
+- `signal.detected` 토픽 구독
+- 신호 발생 즉시 Telegram / Slack 알림 전송
+
+### 4. history-service
+- 신호 / 알림 / 검증 결과 이력 저장 (MySQL)
+- AI 학습용 데이터 축적
+
+### 5. trade-planning-service
+- 실제 주문 없이 Shadow Trading 기반 계획 생성
+- 향후 자동매매 확장 대비 인터페이스 구현
+
+---
+## Redis Usage
+
+| 용도 | 설명 |
+|------|------|
+| Dedup | 동일 종목 중복 신호 방지 |
+| Cooldown | 종목별 신호 발송 간격 제어 |
+| Burst Count | 단위 시간 내 이벤트 수 집계 |
+| State Cache | 최근 시장 상태 및 점수 캐싱 |
+| Gap Reference | 전날 신호 종목 갭상승 교차 검증용 임시 저장 |
+
+---
+## Database Schema (MySQL)
+
+| 테이블 | 설명 |
+|--------|------|
+| `signals` | 생성된 신호 이력 |
+| `signal_reasons` | 신호 발생 근거 (조건별 기여 점수 포함) |
+| `validation_results` | AI 검증 결과 |
+| `alert_history` | 알림 발송 이력 |
+| `news_metadata` | 뉴스 / 공시 메타데이터 |
+| `trade_plans` | Shadow Trading 계획 |
+| `strategy_config` | 전략 파라미터 설정 |
+
+### signal_reasons 상세 스키마
+
+```sql
+signal_reasons
+  ├─ signal_id     -- FK → signals
+  ├─ reason_type   -- VOLUME_SURGE | NEWS_SURGE | AFTER_HOURS | GAP_UP
+  ├─ score         -- 이 조건이 기여한 점수
+  ├─ raw_value     -- 실제 수치 (거래량 배율, 뉴스 건수 등)
+  └─ threshold     -- 탐지 기준값 (AI 학습 시 피처로 활용)
+```
+
+---
+## Kafka Topics
+
+| 구분 | 토픽 | 설명 |
+|------|------|------|
+| Raw | `raw.market` | 가격 / 거래량 이벤트 |
+| Raw | `raw.news` | 뉴스 / 공시 이벤트 |
+| Raw | `raw.after-hours` | 시간외 거래대기 물량 / 갭 데이터 |
+| Signal | `signal.detected` | 탐지된 유효 신호 |
+| Signal | `signal.rejected` | 필터링된 신호 |
+| DLQ | `raw.*.dlq` | raw 토픽 처리 실패 메시지 |
+| DLQ | `signal.detected.dlq` | 신호 처리 실패 메시지 |
+| Future | `trade.plan` | 자동매매 계획 (예정) |
+| Future | `audit.event` | 감사 로그 (예정) |
+
+---
+## Local Development
+
+### 1. 환경변수 설정
+
+```bash
+cp .env.example .env
+# .env 파일에 Telegram Bot Token, DB 비밀번호 등 입력
+```
+
+### 2. 인프라 실행
+
+```bash
+docker compose up -d
+```
+
+### 3. 서비스 실행
+
+```bash
+# 각 서비스는 IDE 또는 개별 실행
+./gradlew :collector-service:bootRun
+./gradlew :signal-service:bootRun
+./gradlew :notification-service:bootRun
+```
+
+---
+## Roadmap
+
+### Phase 1 — MVP
+- [ ] Kafka 환경 구축
+- [ ] collector-service 구현 (시장 데이터 / 뉴스 / 시간외 수집)
+- [ ] signal-service 구현 (scanner / scorer / validator 모듈 분리)
+- [ ] raw.after-hours 토픽 및 갭상승 트리거 로직 구현
+- [ ] DLQ 토픽 정의 및 실패 메시지 처리
+- [ ] Redis dedup / cooldown 적용
+- [ ] notification-service 구현 (Telegram 알림 + chat_id 화이트리스트)
+- [ ] 시크릿 관리 전략 수립 (.env.example 작성)
+
+### Phase 2 — 검증 및 이력
+- [ ] history-service 구축 (signal_reasons 스키마 포함)
+- [ ] 신호 성공/실패 이력 분석
+- [ ] Shadow trading 구현
+- [ ] Prometheus + Grafana 모니터링 구축
+- [ ] 구조화 로그 적용
+
+### Phase 3 — AI 고도화 및 자동매매
+- [ ] AI 모델 학습 및 신호 정확도 개선
+- [ ] 실시간 대시보드 구축
+- [ ] 자동매매 연동 (브로커 API + Secrets Manager)
+- [ ] Kafka SASL/SSL 운영 환경 보안 설정
+
+---
+
+## Disclaimer
+
+이 프로젝트는 학습 및 연구 목적으로 제작되었습니다.
+자동매매 기능은 기본적으로 비활성화 상태이며, **투자에 대한 책임은 사용자에게 있습니다.**
+
+---
+
+## Author
+
+- Backend Developer
+- Event-driven Architecture / Kafka / AI Trading System
