@@ -164,17 +164,16 @@ signal_reasons
 ---
 ## Local Development
 
-### 1. 환경변수 설정
-
-```bash
-cp .env.example .env
-# .env 파일에 Telegram Bot Token, DB 비밀번호 등 입력
-```
-
-### 2. 인프라 실행
+### 1. 인프라 실행
 
 ```bash
 docker compose up -d
+```
+
+### 2. Kafka 토픽 생성
+
+```bash
+./scripts/kafka/create-topics.sh
 ```
 
 ### 3. 서비스 실행

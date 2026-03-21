@@ -1,0 +1,5 @@
+rootProject.name = 'ai-trading-signal-platform'
+
+include 'services:collector-service'
+include 'services:signal-service'
+include 'services:notification-service'
