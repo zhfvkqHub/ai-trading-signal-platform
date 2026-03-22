@@ -1,0 +1,24 @@
+# ================================
+# Local 개발 환경 설정 예시
+# ================================
+# 이 파일을 복사하여 application-local.yml 을 생성한 뒤 실제 값을 입력하세요.
+# $ cp application-local.yml.example application-local.yml
+
+kis:
+  app-key: "KIS_APP_KEY_HERE"
+  app-secret: "KIS_APP_SECRET_HERE"
+  account-no: "ACCOUNT_NO_HERE"       # 예: 50123456-01 (모의투자 계좌도 가능)
+
+dart:
+  api-key: "DART_API_KEY_HERE"
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+
+collector:
+  stock-codes: 005930,000660,035420   # 수집할 종목코드 (콤마 구분)
+
+logging:
+  level:
+    com.signal.collectorservice: DEBUG

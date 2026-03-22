@@ -1,3 +1,101 @@
 spring:
   application:
     name: collector-service
+  profiles:
+    active: local
+
+---
+
+# ================================
+# Kafka Producer
+# ================================
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+        spring.json.add.type.headers: false
+
+# ================================
+# KIS API
+# ================================
+kis:
+  base-url: https://openapi.koreainvestment.com:9443
+  app-key: ${KIS_APP_KEY}
+  app-secret: ${KIS_APP_SECRET}
+  account-no: ${KIS_ACCOUNT_NO}
+  rate-limit:
+    requests-per-second: 19  # KIS 제한 20/s, 여유분 확보
+
+# ================================
+# DART API
+# ================================
+dart:
+  base-url: https://opendart.fss.or.kr
+  api-key: ${DART_API_KEY}
+  rate-limit:
+    requests-per-second: 1
+
+# ================================
+# 수집 스케줄 (cron, KST 기준)
+# ================================
+collector:
+  schedule:
+    market:
+      cron: "0/30 * 9-15 * * MON-FRI"   # 장중 30초 간격
+    after-hours:
+      cron: "0 0/5 15-17 * * MON-FRI"   # 시간외 5분 간격
+    news:
+      cron: "0 0/10 * * * MON-FRI"      # 뉴스/공시 10분 간격
+  stock-codes: ${STOCK_CODES:005930,000660,035420}  # 기본: 삼성전자, SK하이닉스, NAVER
+
+# ================================
+# Trading Session (KST 기준)
+# ================================
+trading:
+  session:
+    pre-market:
+      start: "08:00"
+      end: "09:00"
+    regular:
+      start: "09:00"
+      end: "15:30"
+    after-hours:
+      start: "15:30"
+      end: "18:00"
+
+# ================================
+# Kafka Topics
+# ================================
+kafka:
+  topics:
+    raw-market: raw.market
+    raw-after-hours: raw.after-hours
+    raw-news: raw.news
+
+# ================================
+# Actuator
+# ================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: always
+
+# ================================
+# Logging
+# ================================
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
+  level:
+    root: INFO
+    com.signal.collectorservice: DEBUG

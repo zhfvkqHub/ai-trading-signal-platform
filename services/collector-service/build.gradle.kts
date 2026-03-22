@@ -14,6 +14,8 @@ java {
     }
 }
 
+extra["springCloudVersion"] = "2025.0.0"
+
 configurations {
     compileOnly {
         extendsFrom(configurations.annotationProcessor.get())
@@ -24,11 +26,28 @@ repositories {
     mavenCentral()
 }
 
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
+    }
+}
+
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.kafka:spring-kafka")
+
+    // Feign Client
+    implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
+
+    // Resilience4j — Rate Limiter / Circuit Breaker
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
+
+    // Spring Retry
+    implementation("org.springframework.retry:spring-retry")
+    implementation("org.springframework.boot:spring-boot-starter-aop")
+
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
