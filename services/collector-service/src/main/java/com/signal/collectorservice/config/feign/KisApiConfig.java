@@ -1,7 +1,7 @@
 package com.signal.collectorservice.config.feign;
 
 import com.signal.collectorservice.client.kis.auth.KisTokenManager;
-import com.signal.collectorservice.config.KisProperties;
+import com.signal.collectorservice.config.properties.KisProperties;
 import feign.Logger;
 import feign.Retryer;
 import org.springframework.context.annotation.Bean;

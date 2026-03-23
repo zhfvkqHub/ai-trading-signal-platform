@@ -2,7 +2,7 @@ package com.signal.collectorservice.collector.market;
 
 import com.signal.collectorservice.client.kis.market.KisMarketFeignClient;
 import com.signal.collectorservice.client.kis.market.KisMarketResponse;
-import com.signal.collectorservice.config.CollectorProperties;
+import com.signal.collectorservice.config.properties.CollectorProperties;
 import com.signal.collectorservice.kafka.RawEventPublisher;
 import com.signal.collectorservice.model.DataSource;
 import com.signal.collectorservice.model.TradingSession;

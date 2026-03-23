@@ -1,6 +1,6 @@
 package com.signal.collectorservice.config.feign;
 
-import com.signal.collectorservice.config.DartProperties;
+import com.signal.collectorservice.config.properties.DartProperties;
 import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import lombok.RequiredArgsConstructor;

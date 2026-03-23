@@ -1,6 +1,6 @@
 package com.signal.collectorservice.client.kis.auth;
 
-import com.signal.collectorservice.config.KisProperties;
+import com.signal.collectorservice.config.properties.KisProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.retry.annotation.Backoff;

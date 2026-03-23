@@ -1,4 +1,4 @@
-package com.signal.collectorservice.config;
+package com.signal.collectorservice.config.properties;
 
 import lombok.Getter;
 import lombok.Setter;

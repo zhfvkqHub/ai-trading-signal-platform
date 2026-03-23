@@ -2,7 +2,7 @@ package com.signal.collectorservice.collector.news;
 
 import com.signal.collectorservice.client.dart.DartDisclosureFeignClient;
 import com.signal.collectorservice.client.dart.DartDisclosureResponse;
-import com.signal.collectorservice.config.CollectorProperties;
+import com.signal.collectorservice.config.properties.CollectorProperties;
 import com.signal.collectorservice.kafka.RawEventPublisher;
 import com.signal.collectorservice.model.raw.RawNewsEvent;
 import com.signal.collectorservice.schedule.TradingSessionManager;

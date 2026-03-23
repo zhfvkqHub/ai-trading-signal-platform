@@ -1,6 +1,6 @@
 package com.signal.collectorservice.kafka;
 
-import com.signal.collectorservice.config.KafkaTopicProperties;
+import com.signal.collectorservice.config.properties.KafkaTopicProperties;
 import com.signal.collectorservice.model.raw.RawAfterHoursEvent;
 import com.signal.collectorservice.model.raw.RawMarketEvent;
 import com.signal.collectorservice.model.raw.RawNewsEvent;
@@ -34,14 +34,16 @@ public class RawEventPublisher {
     }
 
     private void publish(String topic, String key, Object event) {
-        ProducerRecord<String, Object> record = new ProducerRecord<>(topic, key, event);
+        ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(topic, key, event);
 
         String traceId = MDC.get("traceId");
         if (traceId != null) {
-            record.headers().add("traceId", traceId.getBytes(StandardCharsets.UTF_8));
+            producerRecord.headers()
+                    .add("traceId", traceId.getBytes(StandardCharsets.UTF_8));
         }
 
-        kafkaTemplate.send(record).whenComplete((result, ex) -> {
+        kafkaTemplate.send(producerRecord)
+                .whenComplete((result, ex) -> {
             if (ex != null) {
                 log.error("Kafka 발행 실패 [topic={}, key={}]", topic, key, ex);
             } else {

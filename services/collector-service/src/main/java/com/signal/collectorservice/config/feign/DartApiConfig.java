@@ -1,6 +1,6 @@
 package com.signal.collectorservice.config.feign;
 
-import com.signal.collectorservice.config.DartProperties;
+import com.signal.collectorservice.config.properties.DartProperties;
 import feign.Logger;
 import feign.Retryer;
 import org.springframework.context.annotation.Bean;

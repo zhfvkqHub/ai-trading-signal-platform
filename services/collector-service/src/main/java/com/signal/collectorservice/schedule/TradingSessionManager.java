@@ -1,11 +1,15 @@
 package com.signal.collectorservice.schedule;
 
-import com.signal.collectorservice.config.TradingSessionProperties;
+import com.signal.collectorservice.config.properties.TradingSessionProperties;
 import com.signal.collectorservice.model.TradingSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.time.*;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.MonthDay;
+import java.time.ZoneId;
 import java.util.Set;
 
 @Component

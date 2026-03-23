@@ -2,7 +2,7 @@ package com.signal.collectorservice.collector.afterhours;
 
 import com.signal.collectorservice.client.kis.afterhours.KisAfterHoursFeignClient;
 import com.signal.collectorservice.client.kis.afterhours.KisAfterHoursResponse;
-import com.signal.collectorservice.config.CollectorProperties;
+import com.signal.collectorservice.config.properties.CollectorProperties;
 import com.signal.collectorservice.kafka.RawEventPublisher;
 import com.signal.collectorservice.model.DataSource;
 import com.signal.collectorservice.model.TradingSession;
