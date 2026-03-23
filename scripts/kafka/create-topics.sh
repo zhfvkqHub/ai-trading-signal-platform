@@ -11,10 +11,19 @@ topics=(
   trade.plan
 )
 
+# Wait for Kafka to be ready
+echo "Waiting for Kafka..."
+until docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server $BROKER --list >/dev/null 2>&1
+do
+  sleep 2
+done
+
+echo "Kafka is ready."
+
 for topic in "${topics[@]}"
 do
   echo "Creating topic: $topic"
-  docker exec kafka kafka-topics.sh \
+  docker exec kafka /opt/kafka/bin/kafka-topics.sh \
     --create \
     --if-not-exists \
     --bootstrap-server $BROKER \

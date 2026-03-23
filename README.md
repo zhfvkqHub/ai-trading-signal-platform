@@ -87,7 +87,6 @@ Event-driven AI trading signal platform using Kafka, Redis, and MySQL.
 
 ### 1. collector-service
 - 시장 데이터 / 뉴스 / 시간외 거래대기 물량 수집
-- 최소한의 정규화 수행
 - Kafka `raw.*` 토픽으로 이벤트 발행
 
 ### 2. signal-service
@@ -175,48 +174,6 @@ docker compose up -d
 ```bash
 ./scripts/kafka/create-topics.sh
 ```
-
-### 3. 서비스 실행
-
-```bash
-# 각 서비스는 IDE 또는 개별 실행
-./gradlew :collector-service:bootRun
-./gradlew :signal-service:bootRun
-./gradlew :notification-service:bootRun
-```
-
----
-## Roadmap
-
-### Phase 1 — MVP
-- [ ] Kafka 환경 구축
-- [ ] collector-service 구현 (시장 데이터 / 뉴스 / 시간외 수집)
-- [ ] signal-service 구현 (scanner / scorer / validator 모듈 분리)
-- [ ] raw.after-hours 토픽 및 갭상승 트리거 로직 구현
-- [ ] DLQ 토픽 정의 및 실패 메시지 처리
-- [ ] Redis dedup / cooldown 적용
-- [ ] notification-service 구현 (Telegram 알림 + chat_id 화이트리스트)
-- [ ] 시크릿 관리 전략 수립 (.env.example 작성)
-
-### Phase 2 — 검증 및 이력
-- [ ] history-service 구축 (signal_reasons 스키마 포함)
-- [ ] 신호 성공/실패 이력 분석
-- [ ] Shadow trading 구현
-- [ ] Prometheus + Grafana 모니터링 구축
-- [ ] 구조화 로그 적용
-
-### Phase 3 — AI 고도화 및 자동매매
-- [ ] AI 모델 학습 및 신호 정확도 개선
-- [ ] 실시간 대시보드 구축
-- [ ] 자동매매 연동 (브로커 API + Secrets Manager)
-- [ ] Kafka SASL/SSL 운영 환경 보안 설정
-
----
-
-## Disclaimer
-
-이 프로젝트는 학습 및 연구 목적으로 제작되었습니다.
-자동매매 기능은 기본적으로 비활성화 상태이며, **투자에 대한 책임은 사용자에게 있습니다.**
 
 ---
 

@@ -12,7 +12,7 @@
 ## 구현 순서 Overview
 
 ```
-Phase 1. 기반 인프라
+Phase 1. 공통 모델 정의
 Phase 2. 장 시간 관리
 Phase 3. KIS API 클라이언트
 Phase 4. DART API 클라이언트
@@ -23,30 +23,15 @@ Phase 7. 운영성
 
 ---
 
-## Phase 1. 기반 인프라 설정
+## Phase 1. 기반 인프라
 
-### 1-1. 의존성 추가 (`build.gradle.kts`)
+### 공통 모델 정의 (`model/`)
 
-- [ ] `spring-boot-starter-webflux` — 비동기 HTTP 클라이언트 (WebClient)
-- [ ] `spring-retry` — API 재시도 처리
-- [ ] `resilience4j` — Rate Limit / Circuit Breaker
-- [ ] `jackson-module-kotlin` or `jackson-databind` 확인
-
-### 1-2. `application.yml` 환경 설정
-
-- [ ] KIS API 설정 (`appKey`, `appSecret`, base-url)
-- [ ] DART API 설정 (`apiKey`, base-url)
-- [ ] Kafka 설정 (broker, producer 설정)
-- [ ] 스케줄 인터벌 설정 (market: 30s, after-hours: 5m, news: 10m)
-- [ ] Rate Limit 설정값 (KIS: 20req/s, DART: 1req/s)
-
-### 1-3. 공통 모델 정의 (`model/`)
-
-- [ ] `RawMarketEvent` — 장중 시세 이벤트
-- [ ] `RawAfterHoursEvent` — 시간외 단일가 이벤트
-- [ ] `RawNewsEvent` — 공시/뉴스 이벤트
-- [ ] `DataSource` enum — KIS, DART, etc.
-- [ ] `TradingSession` enum — PRE_MARKET, REGULAR, AFTER_HOURS, CLOSED
+- [x] `RawMarketEvent` — 장중 시세 이벤트
+- [x] `RawAfterHoursEvent` — 시간외 단일가 이벤트
+- [x] `RawNewsEvent` — 공시/뉴스 이벤트
+- [x] `DataSource` enum — KIS, DART
+- [x] `TradingSession` enum — PRE_MARKET, REGULAR, AFTER_HOURS, CLOSED
 
 ---
 
@@ -54,13 +39,18 @@ Phase 7. 운영성
 
 ### 2-1. `TradingSessionManager`
 
-- [ ] 영업일 판단 (공휴일 제외) — `java.time` + 한국 공휴일 리스트
-- [ ] 현재 세션 반환 (`TradingSession`)
+- [x] 영업일 판단 (공휴일 제외) — `java.time` + 한국 고정 공휴일 8개
+- [x] 현재 세션 반환 (`TradingSession`)
     - `PRE_MARKET` : 08:00 ~ 09:00
     - `REGULAR` : 09:00 ~ 15:30
     - `AFTER_HOURS` : 15:30 ~ 18:00
     - `CLOSED` : 그 외 (수집 차단)
-- [ ] 세션별 수집 활성화 여부 판단 메서드
+- [x] 세션별 수집 활성화 여부 판단 메서드
+
+### 2-2. `TradingSessionProperties`
+
+- [x] `@ConfigurationProperties(prefix = "trading.session")` — 장 시간 설정 바인딩
+- [x] preMarket, regular, afterHours 각각 TimeRange(start, end) 내부 클래스
 
 ---
 
@@ -68,32 +58,40 @@ Phase 7. 운영성
 
 > 공식 문서: https://apiportal.koreainvestment.com
 
-### 3-1. 인증 (`kis/auth/`)
+### 3-1. 인증 (`client/kis/auth/`)
 
-- [ ] `KisAuthClient` — OAuth 2.0 Access Token 발급
+- [x] `KisAuthFeignClient` — OAuth 2.0 Access Token 발급
     - POST `/oauth2/tokenP`
     - `appKey` + `appSecret` → `access_token` (유효기간 24h)
-- [ ] `KisTokenManager` — 토큰 캐싱 + 만료 전 자동 갱신
+- [x] `KisTokenResponse` — 토큰 응답 매핑
+- [x] `KisTokenManager` — 토큰 캐싱 + 만료 10분 전 자동 갱신 + `@Retryable`
 
-### 3-2. 장중 시세 조회 (`kis/market/`)
+### 3-2. Feign 공통 설정 (`config/feign/`)
 
-- [ ] `KisMarketClient`
+- [x] `KisApiConfig` — 인증이 필요한 KIS 클라이언트에 적용되는 Feign 설정
+    - `KisRequestInterceptor`, `KisErrorDecoder`, `Retryer`, Logger Level
+- [x] `KisRequestInterceptor` — 공통 헤더 주입 (`authorization`, `appkey`, `appsecret`, `custtype`)
+- [x] `KisErrorDecoder` — 상태코드별 예외 변환 (429, 401, 500/503)
+
+### 3-3. 장중 시세 조회 (`client/kis/market/`)
+
+- [x] `KisMarketFeignClient`
     - GET `/uapi/domestic-stock/v1/quotations/inquire-price`
-    - 응답 → `RawMarketEvent` 매핑
-    - 수집 항목: 현재가, 시가, 고가, 저가, 거래량, 전일 종가, 수집 시각
+    - 수집 항목: 현재가, 시가, 고가, 저가, 전일 종가, 누적 거래량, 누적 거래대금, 종목명
+- [x] `KisMarketResponse` — API 응답 매핑
 
-### 3-3. 시간외 단일가 조회 (`kis/afterhours/`)
+### 3-4. 시간외 단일가 조회 (`client/kis/afterhours/`)
 
-- [ ] `KisAfterHoursClient`
-    - GET `/uapi/domestic-stock/v1/quotations/inquire-asking-price-exp-ccn` (시간외 호가)
-    - 응답 → `RawAfterHoursEvent` 매핑
-    - 수집 항목: 시간외 단일가, 시간외 거래량, 매수/매도 대기 물량
+- [x] `KisAfterHoursFeignClient`
+    - GET `/uapi/domestic-stock/v1/quotations/inquire-daily-overtimeprice`
+    - 수집 항목: 시간외 현재가, 시간외 거래량/거래대금, 상·하한가, 당일 종가, 순매수 수량, 예상 체결량
+- [x] `KisAfterHoursResponse` — API 응답 매핑
 
-### 3-4. Rate Limit 처리
+### 3-5. Rate Limit 처리
 
-- [ ] KIS API 제한: **초당 20건** (TR별 상이)
-- [ ] `RateLimiter` 적용 (Resilience4j)
-- [ ] 429 응답 시 backoff + retry 처리
+- [x] KIS API 제한 설정: **초당 19건** (20건 한도에서 여유분 확보)
+- [ ] `RateLimiter` 적용 (Resilience4j) — 수집기 레벨에서 적용
+- [x] 429 응답 시 `KisRateLimitException` + Feign Retryer 자동 재시도 (100ms~1s, 3회)
 
 ---
 
@@ -101,23 +99,29 @@ Phase 7. 운영성
 
 > 공식 문서: https://opendart.fss.or.kr
 
-### 4-1. 공시 목록 조회 (`dart/`)
+### 4-1. Feign 클라이언트 (`client/dart/`)
 
-- [ ] `DartDisclosureClient`
+- [x] `DartDisclosureFeignClient`
     - GET `/api/list.json`
-    - 파라미터: `bgn_de` (조회 시작일), `pblntf_ty` (공시 유형)
-    - 응답 → `RawNewsEvent` 매핑
-    - 수집 항목: 공시 제목, 종목명, 종목코드, 공시 유형, 접수 일시, 공시 URL
+    - 파라미터: `bgn_de` (조회 시작일), `page_no`, `page_count`
+- [x] `DartDisclosureResponse` — API 응답 매핑
+- [x] 응답 → `RawNewsEvent` 매핑
 
-### 4-2. 중복 방지
+### 4-2. DART Feign 설정
 
-- [ ] 마지막 수집 공시 `rcept_no` 기준으로 신규 건만 발행
-- [ ] In-memory Set 또는 Redis (추후)로 발행 여부 추적
+- [x] `DartApiConfig` — DART 전용 Feign 설정 (Retryer 200ms~2s, 3회)
+- [x] `DartRequestInterceptor` — `crtfc_key` 쿼리 파라미터 주입
+- [x] `DartErrorDecoder` — DART API 오류 처리 (429→RateLimitException, 5xx→ServerException)
 
-### 4-3. Rate Limit 처리
+### 4-3. 중복 방지
 
-- [ ] DART API 제한: **분당 1,000건** (실질적으로 1req/s 권장)
-- [ ] `RateLimiter` 적용
+- [x] 마지막 수집 공시 `rcept_no` 기준으로 신규 건만 발행 (`volatile lastReceiptNo`)
+- [ ] Redis 기반 발행 여부 추적 (추후)
+
+### 4-4. Rate Limit 처리
+
+- [x] DART API 제한 설정: 1req/s 권장
+- [ ] `RateLimiter` 적용 (Resilience4j)
 
 ---
 
@@ -125,19 +129,19 @@ Phase 7. 운영성
 
 ### 5-1. `MarketDataCollector`
 
-- [ ] `@Scheduled` — 장중(REGULAR) 세션에서만 동작, 30초 간격
-- [ ] 수집 대상 종목 리스트 관리 (초기: 코스피 200 or 설정값)
-- [ ] 종목별 KIS 시세 조회 → `RawMarketEvent` 생성 → Kafka 발행
+- [x] `@Scheduled(cron)` — 장중(REGULAR) 세션에서만 동작, 30초 간격
+- [x] `TradingSessionManager` 연동하여 CLOSED 시 수집 스킵
+- [x] 종목별 `KisMarketFeignClient` 시세 조회 → `RawMarketEvent` 변환 → Kafka 발행
 
 ### 5-2. `AfterHoursCollector`
 
-- [ ] `@Scheduled` — AFTER_HOURS 세션에서만 동작, 5분 간격
-- [ ] 종목별 KIS 시간외 호가 조회 → `RawAfterHoursEvent` 생성 → Kafka 발행
+- [x] `@Scheduled(cron)` — AFTER_HOURS 세션에서만 동작, 5분 간격
+- [x] 종목별 `KisAfterHoursFeignClient` 시간외 호가 조회 → `RawAfterHoursEvent` 변환 → Kafka 발행
 
 ### 5-3. `NewsCollector`
 
-- [ ] `@Scheduled` — 항상 동작 (공휴일 포함 뉴스 발생 가능), 10분 간격
-- [ ] DART 공시 조회 → 신규 건 필터링 → `RawNewsEvent` 생성 → Kafka 발행
+- [x] `@Scheduled(cron)` — 영업일에 동작, 10분 간격
+- [x] `DartDisclosureFeignClient` 공시 조회 → 신규 건 필터링 → `RawNewsEvent` 변환 → Kafka 발행
 
 ---
 
@@ -145,20 +149,14 @@ Phase 7. 운영성
 
 ### 6-1. `RawEventPublisher`
 
-- [ ] `KafkaTemplate<String, Object>` 공통 발행 메서드
-- [ ] 토픽별 발행:
+- [x] `KafkaTemplate<String, Object>` 공통 발행 메서드
+- [x] 토픽별 발행:
     - `raw.market` — key: `stockCode`
     - `raw.after-hours` — key: `stockCode`
-    - `raw.news` — key: `stockCode` (없으면 `ALL`)
-- [ ] `traceId` 헤더 주입 (MDC 연계)
-- [ ] 발행 실패 시 로그 + Dead Letter Queue (DLQ) 고려
-
-### 6-2. Kafka Producer 설정
-
-- [ ] `acks=all` — 메시지 유실 방지
-- [ ] `retries=3`
-- [ ] `idempotence=true`
-- [ ] 직렬화: JSON (`JsonSerializer`)
+    - `raw.news` — key: `receiptNo`
+- [x] `traceId` 헤더 주입 (MDC 연계)
+- [x] 발행 성공/실패 시 `whenComplete` 콜백 로깅
+- [ ] Dead Letter Queue (DLQ) 설정 (추후)
 
 ---
 
@@ -166,14 +164,14 @@ Phase 7. 운영성
 
 ### 7-1. 구조화 로그
 
-- [ ] `logback-spring.xml` — JSON 포맷 출력 (Logstash encoder)
-- [ ] MDC에 `traceId`, `stockCode`, `session` 포함
-- [ ] 수집 성공/실패 이벤트 로깅
+- [x] `logback-spring.xml` — JSON 포맷 출력 (Logstash encoder)
+- [x] 로그 패턴에 `traceId` 포함 (MDC)
+- [x] 수집 성공/실패 이벤트 로깅
 
 ### 7-2. Health Check
 
-- [ ] `/actuator/health` — Spring Actuator 기본 제공
-- [ ] KIS API 연결 상태 커스텀 HealthIndicator
+- [x] `/actuator/health` — Spring Actuator 기본 제공 (`show-details: always`)
+- [x] `KisHealthIndicator` — KIS API 토큰 유효성 기반 커스텀 HealthIndicator
 - [ ] Kafka Producer 연결 상태 확인
 
 ### 7-3. 메트릭 (추후)
@@ -190,34 +188,47 @@ Phase 7. 운영성
 com.signal.collectorservice
 ├── CollectorServiceApplication.java
 ├── config/
-│   ├── KafkaProducerConfig.java
-│   ├── WebClientConfig.java
-│   └── ResilienceConfig.java
+│   ├── AppConfig.java
+│   ├── KisProperties.java
+│   ├── DartProperties.java
+│   ├── CollectorProperties.java
+│   ├── TradingSessionProperties.java
+│   ├── KafkaTopicProperties.java
+│   └── feign/
+│       ├── KisApiConfig.java
+│       ├── KisRequestInterceptor.java
+│       ├── KisErrorDecoder.java
+│       ├── DartApiConfig.java
+│       ├── DartRequestInterceptor.java
+│       └── DartErrorDecoder.java
 ├── schedule/
 │   └── TradingSessionManager.java
 ├── collector/
 │   ├── market/
-│   │   ├── MarketDataCollector.java
-│   │   └── MarketDataNormalizer.java
+│   │   └── MarketDataCollector.java
 │   ├── afterhours/
-│   │   ├── AfterHoursCollector.java
-│   │   └── AfterHoursNormalizer.java
+│   │   └── AfterHoursCollector.java
 │   └── news/
-│       ├── NewsCollector.java
-│       └── NewsNormalizer.java
+│       └── NewsCollector.java
 ├── client/
 │   ├── kis/
 │   │   ├── auth/
-│   │   │   ├── KisAuthClient.java
-│   │   │   └── KisTokenManager.java
+│   │   │   ├── KisAuthFeignClient.java
+│   │   │   ├── KisTokenManager.java
+│   │   │   └── KisTokenResponse.java
 │   │   ├── market/
-│   │   │   └── KisMarketClient.java
+│   │   │   ├── KisMarketFeignClient.java
+│   │   │   └── KisMarketResponse.java
 │   │   └── afterhours/
-│   │       └── KisAfterHoursClient.java
+│   │       ├── KisAfterHoursFeignClient.java
+│   │       └── KisAfterHoursResponse.java
 │   └── dart/
-│       └── DartDisclosureClient.java
+│       ├── DartDisclosureFeignClient.java
+│       └── DartDisclosureResponse.java
 ├── kafka/
 │   └── RawEventPublisher.java
+├── health/
+│   └── KisHealthIndicator.java
 └── model/
     ├── raw/
     │   ├── RawMarketEvent.java
@@ -235,9 +246,18 @@ com.signal.collectorservice
 |---------------------------|----------------------|
 | `KIS_APP_KEY`             | KIS Developers 앱 키   |
 | `KIS_APP_SECRET`          | KIS Developers 앱 시크릿 |
-| `KIS_ACCOUNT_NO`          | 계좌번호 (모의투자 or 실전)    |
+| `KIS_ACCOUNT_NO`          | 계좌번호                 |
 | `DART_API_KEY`            | DART OpenAPI 인증키     |
-| `KAFKA_BOOTSTRAP_SERVERS` | Kafka 브로커 주소         |
+
+---
+
+## 남은 작업 (추후)
+
+- [ ] Resilience4j `RateLimiter` 적용 (KIS/DART 수집기 레벨)
+- [ ] Redis 기반 공시 중복 방지
+- [ ] Dead Letter Queue (DLQ) 설정
+- [ ] Kafka Producer 연결 상태 HealthIndicator
+- [ ] 메트릭 (토픽별 발행 건수, API 응답 시간, Rate Limit 초과 횟수)
 
 ---
 

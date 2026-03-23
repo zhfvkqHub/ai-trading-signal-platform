@@ -17,7 +17,7 @@
 - Kafka `raw.*` 이벤트 발행
 - 외부 API Rate Limit 및 장애 대응
 
-판단 로직은 `signal-service` 에서 수행하며, `collector-service` 는 데이터 수집과 전달에만 집중합니다.
+판단 로직은 `signal-service` 에서 수행하며, `collector-service` 는 데이터 수집과 전달만 진행합니다.
 
 ---
 

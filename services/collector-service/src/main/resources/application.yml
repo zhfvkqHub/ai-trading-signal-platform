@@ -11,7 +11,7 @@ spring:
 # ================================
 spring:
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -52,7 +52,7 @@ collector:
       cron: "0 0/5 15-17 * * MON-FRI"   # 시간외 5분 간격
     news:
       cron: "0 0/10 * * * MON-FRI"      # 뉴스/공시 10분 간격
-  stock-codes: ${STOCK_CODES:005930,000660,035420}  # 기본: 삼성전자, SK하이닉스, NAVER
+  stock-codes: ${STOCK_CODES:005930,000660,035420} # 삼성전자, SK하이닉스, NAVER
 
 # ================================
 # Trading Session (KST 기준)
@@ -94,8 +94,6 @@ management:
 # Logging
 # ================================
 logging:
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
   level:
     root: INFO
     com.signal.collectorservice: DEBUG

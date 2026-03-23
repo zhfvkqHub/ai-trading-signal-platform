@@ -6,18 +6,16 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Getter
 @Setter
-@ConfigurationProperties(prefix = "kis")
-public class KisProperties {
+@ConfigurationProperties(prefix = "dart")
+public class DartProperties {
 
     private String baseUrl;
-    private String appKey;
-    private String appSecret;
-    private String accountNo;
+    private String apiKey;
     private RateLimit rateLimit = new RateLimit();
 
     @Getter
     @Setter
     public static class RateLimit {
-        private int requestsPerSecond = 19;
+        private int requestsPerSecond = 1;
     }
 }

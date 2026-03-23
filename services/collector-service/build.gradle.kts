@@ -48,6 +48,9 @@ dependencies {
     implementation("org.springframework.retry:spring-retry")
     implementation("org.springframework.boot:spring-boot-starter-aop")
 
+    // Logstash Logback Encoder — JSON 구조화 로그
+    implementation("net.logstash.logback:logstash-logback-encoder:8.0")
+
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")
     testImplementation("org.springframework.boot:spring-boot-starter-test")

@@ -10,6 +10,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @EnableRetry
 @EnableFeignClients(basePackages = "com.signal.collectorservice.client")
-@EnableConfigurationProperties(KisProperties.class)
+@EnableConfigurationProperties({
+        KisProperties.class,
+        TradingSessionProperties.class,
+        DartProperties.class,
+        CollectorProperties.class,
+        KafkaTopicProperties.class
+})
 public class AppConfig {
 }
