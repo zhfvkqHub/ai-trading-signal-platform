@@ -1,0 +1,32 @@
+# ================================
+# Local 개발 환경 설정 예시
+# ================================
+
+notification:
+
+  # ── Telegram ──────────────────────────────────────────
+  # Bot Token: https://t.me/BotFather 에서 /newbot 으로 발급
+  # Chat ID:   봇을 채널/그룹에 초대 후 아래 URL로 확인
+  #            https://api.telegram.org/bot{TOKEN}/getUpdates
+  telegram:
+    enabled: true
+    bot-token: "YOUR_BOT_TOKEN_HERE"
+    chat-id: "YOUR_CHAT_ID_HERE"
+
+  # ── Slack ──────────────────────────────────────────────
+  # Webhook URL: https://api.slack.com/apps → Incoming Webhooks → Add New Webhook
+  slack:
+    enabled: true
+    webhook-url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+
+spring:
+  kafka:
+    bootstrap-servers: localhost:29092
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    com.signal.notificationservice: DEBUG
