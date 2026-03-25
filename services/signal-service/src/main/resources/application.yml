@@ -71,12 +71,29 @@ scanner:
 # ================================
 scorer:
   weights:
-    VOLUME_SURGE: 30
-    NEWS_SURGE: 25
-    AFTER_HOURS_SURGE: 25
-    GAP_UP: 20
-  combo-bonus: 10              # 2개 이상 신호 동시 발생 시 보너스
-  min-score: 25                # 최소 점수 (이하 무시)
+    VOLUME_SURGE: 25           # 30→25 (방향성 모호, 하락에서도 발생)
+    NEWS_SURGE: 20             # 25→20 (호/악재 구분 없음)
+    AFTER_HOURS_SURGE: 30      # 25→30 (방향성 예측력 가장 높음)
+    GAP_UP: 25                 # 20→25 (강한 방향성 신호)
+  combo-bonus-2: 10            # 2개 신호 동시
+  combo-bonus-3: 20            # 3개 신호 동시
+  combo-bonus-4: 30            # 4개 신호 동시
+  min-score: 20                # 25→20 (GAP_UP 단독 발행 허용)
+  intensity:
+    VOLUME_SURGE:
+      tier2-threshold: 3.0     # 3배 이상
+      tier3-threshold: 5.0     # 5배 이상
+    GAP_UP:
+      tier2-threshold: 3.0     # 3% 이상
+      tier3-threshold: 5.0     # 5% 이상
+    NEWS_SURGE:
+      tier2-threshold: 5.0     # 5건 이상
+      tier3-threshold: 10.0    # 10건 이상
+    AFTER_HOURS_SURGE:
+      tier2-threshold: 2.5     # 매수비율 2.5 이상
+      tier3-threshold: 4.0     # 매수비율 4.0 이상
+  intensity-tier2-bonus: 5
+  intensity-tier3-bonus: 10
 
 # ================================
 # Validator 설정
