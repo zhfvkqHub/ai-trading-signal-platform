@@ -31,7 +31,8 @@ public class MarketEventListener {
 
         try {
             RawMarketEvent event = kafkaRecord.value();
-            log.debug("시장 데이터 수신 [stockCode={}, price={}]", event.stockCode(), event.price());
+            log.info("시장 데이터 수신 [stockCode={}, price={}, volume={}]",
+                    event.stockCode(), event.price(), event.volume());
             pipeline.processMarketEvent(event);
         } catch (Exception e) {
             log.error("시장 데이터 처리 실패 [key={}]", kafkaRecord.key(), e);

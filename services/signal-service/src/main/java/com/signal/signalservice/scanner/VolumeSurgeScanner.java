@@ -47,7 +47,12 @@ public class VolumeSurgeScanner {
                 Duration.ofHours(config.getLastVolumeTtlHours()));
 
         if (eodVolumeStr == null) {
-            // EOD 데이터 없으면 현재 데이터를 EOD로 저장 (장 마감 시 덮어씀)
+            // EOD 데이터 없으면 현재 데이터를 전일 EOD 기준으로 부트스트랩
+            // → 이후 이벤트부터 이 기준 대비 거래량 비교 가능
+            log.info("[VOLUME_SURGE] EOD 부트스트랩 [stockCode={}, baselineVolume={}]",
+                    stockCode, currentVolume.toPlainString());
+            redisTemplate.opsForValue().set(eodKey, currentVolume.toPlainString(),
+                    Duration.ofHours(config.getEodTtlHours()));
             String todayEodKey = String.format(RedisKeyConstants.VOLUME_EOD,
                     LocalDate.now(KST).format(DATE_FORMAT), stockCode);
             redisTemplate.opsForValue().set(todayEodKey, currentVolume.toPlainString(),

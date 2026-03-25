@@ -52,6 +52,9 @@ public class SignalPipeline {
         }
 
         if (triggered.isEmpty()) {
+            log.info("시장 데이터 분석 완료: 신호 미감지 [stockCode={}, volume={}, gapResult={}, volumeResult={}]",
+                    event.stockCode(), event.volume(),
+                    gapResult.triggered(), volumeResult.triggered());
             return;
         }
 
