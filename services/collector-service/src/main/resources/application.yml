@@ -50,8 +50,6 @@ dart:
 # ================================
 collector:
   schedule:
-    pre-market:
-      cron: "0 0/5 8 * * MON-FRI"       # 장전 시간외 단일가 5분 간격 (08:00~08:59)
     market:
       cron: "0/30 * 9-15 * * MON-FRI"   # 장중 30초 간격 (09:00~15:30)
     after-hours:
