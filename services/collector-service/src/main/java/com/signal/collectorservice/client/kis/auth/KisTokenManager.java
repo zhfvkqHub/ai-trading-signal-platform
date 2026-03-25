@@ -41,6 +41,10 @@ public class KisTokenManager {
         }
     }
 
+    public boolean isCachedTokenValid() {
+        return isValid();
+    }
+
     private boolean isValid() {
         return cachedToken != null
                 && expiresAt != null

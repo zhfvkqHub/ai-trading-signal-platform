@@ -73,6 +73,10 @@ public class AfterHoursCollector {
             }
 
             KisAfterHoursResponse.Output output = response.output();
+            if (output == null) {
+                log.debug("KIS 시간외 데이터 없음 [stockCode={}]", stockCode);
+                return;
+            }
             RawAfterHoursEvent event = new RawAfterHoursEvent(
                     stockCode,
                     stockCode,  // 시간외 API에는 종목명이 없으므로 코드로 대체

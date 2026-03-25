@@ -16,24 +16,15 @@ public class KisHealthIndicator implements HealthIndicator {
 
     @Override
     public Health health() {
-        try {
-            String token = tokenManager.getAccessToken();
-            if (token != null && !token.isBlank()) {
-                return Health.up()
-                        .withDetail("service", "KIS OpenAPI")
-                        .withDetail("tokenStatus", "valid")
-                        .build();
-            }
-            return Health.down()
+        if (tokenManager.isCachedTokenValid()) {
+            return Health.up()
                     .withDetail("service", "KIS OpenAPI")
-                    .withDetail("tokenStatus", "empty")
-                    .build();
-        } catch (Exception e) {
-            log.warn("KIS 헬스 체크 실패", e);
-            return Health.down()
-                    .withDetail("service", "KIS OpenAPI")
-                    .withDetail("error", e.getMessage())
+                    .withDetail("tokenStatus", "valid")
                     .build();
         }
+        return Health.unknown()
+                .withDetail("service", "KIS OpenAPI")
+                .withDetail("tokenStatus", "not yet acquired or expired")
+                .build();
     }
 }

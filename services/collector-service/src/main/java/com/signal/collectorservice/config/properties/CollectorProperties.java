@@ -17,6 +17,7 @@ public class CollectorProperties {
     @Getter
     @Setter
     public static class Schedule {
+        private CronEntry preMarket = new CronEntry();
         private CronEntry market = new CronEntry();
         private CronEntry afterHours = new CronEntry();
         private CronEntry news = new CronEntry();

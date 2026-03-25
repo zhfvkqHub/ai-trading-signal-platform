@@ -3,6 +3,13 @@ spring:
     name: collector-service
   profiles:
     active: local
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connect-timeout: 3000   # 3초
+            read-timeout: 5000      # 5초
 
 # ================================
 # Kafka Producer
@@ -43,10 +50,12 @@ dart:
 # ================================
 collector:
   schedule:
+    pre-market:
+      cron: "0 0/5 8 * * MON-FRI"       # 장전 시간외 단일가 5분 간격 (08:00~08:59)
     market:
-      cron: "0/30 * 9-15 * * MON-FRI"   # 장중 30초 간격
+      cron: "0/30 * 9-15 * * MON-FRI"   # 장중 30초 간격 (09:00~15:30)
     after-hours:
-      cron: "0 0/5 15-17 * * MON-FRI"   # 시간외 5분 간격
+      cron: "0 0/5 15-18 * * MON-FRI"   # 시간외 5분 간격 (15:30~18:00)
     news:
       cron: "0 0/10 * * * MON-FRI"      # 뉴스/공시 10분 간격
   stock-codes: ${STOCK_CODES:005930,000660,035420} # 삼성전자, SK하이닉스, NAVER
