@@ -4,12 +4,9 @@ spring:
   profiles:
     active: local
 
----
-
 # ================================
 # Kafka Producer
 # ================================
-spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
     producer:

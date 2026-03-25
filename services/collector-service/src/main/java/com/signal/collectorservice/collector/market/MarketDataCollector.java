@@ -8,6 +8,7 @@ import com.signal.collectorservice.model.DataSource;
 import com.signal.collectorservice.model.TradingSession;
 import com.signal.collectorservice.model.raw.RawMarketEvent;
 import com.signal.collectorservice.schedule.TradingSessionManager;
+import io.github.resilience4j.ratelimiter.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -29,6 +30,7 @@ public class MarketDataCollector {
     private final TradingSessionManager sessionManager;
     private final CollectorProperties collectorProperties;
     private final RawEventPublisher eventPublisher;
+    private final RateLimiter kisRateLimiter;
 
     private static final String TRACE_ID_KEY = "traceId";
 
@@ -65,6 +67,7 @@ public class MarketDataCollector {
     private void collectSingle(String stockCode, String traceId) {
         MDC.put(TRACE_ID_KEY, traceId);
         try {
+            kisRateLimiter.acquirePermission();
             KisMarketResponse response = marketClient.fetchCurrentPrice(
                     "FHKST01010100", "J", stockCode);
 
