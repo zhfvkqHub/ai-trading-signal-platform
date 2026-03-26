@@ -77,7 +77,7 @@ public class MarketDataCollector {
             }
 
             KisMarketResponse.Output output = response.output();
-            String stockName = output.stockName();
+            String stockName = collectorProperties.getStockName(stockCode);
             RawMarketEvent event = new RawMarketEvent(
                     stockCode,
                     stockName,

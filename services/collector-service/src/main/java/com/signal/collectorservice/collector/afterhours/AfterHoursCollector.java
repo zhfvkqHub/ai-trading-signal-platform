@@ -77,7 +77,7 @@ public class AfterHoursCollector {
                 log.debug("KIS 시간외 데이터 없음 [stockCode={}]", stockCode);
                 return;
             }
-            String stockName = output.stockName();
+            String stockName = collectorProperties.getStockName(stockCode);
             RawAfterHoursEvent event = new RawAfterHoursEvent(
                     stockCode,
                     stockName,
