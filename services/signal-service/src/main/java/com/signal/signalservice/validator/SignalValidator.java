@@ -29,7 +29,7 @@ public class SignalValidator {
             String dedupKey = String.format(RedisKeyConstants.DEDUP, type.name(), stockCode);
             if (redisTemplate.hasKey(dedupKey)) {
                 String reason = String.format("중복 신호: %s:%s (TTL %d분 내 재발생)",
-                        type.name(), stockCode, validatorProperties.getDedupTtlMinutes());
+                        type.name(), stockCode, validatorProperties.getDedupTtlMinutes(type));
                 log.debug("[DEDUP] {}", reason);
                 return reason;
             }
@@ -64,11 +64,11 @@ public class SignalValidator {
      * 신호 발신 성공 후 Redis에 기록
      */
     public void recordSignalEmission(String stockCode, List<SignalType> signalTypes) {
-        // Dedup 키 등록
+        // Dedup 키 등록 (신호 타입별 TTL 적용)
         for (SignalType type : signalTypes) {
             String dedupKey = String.format(RedisKeyConstants.DEDUP, type.name(), stockCode);
-            redisTemplate.opsForValue().set(dedupKey, "1",
-                    Duration.ofMinutes(validatorProperties.getDedupTtlMinutes()));
+            int ttl = validatorProperties.getDedupTtlMinutes(type);
+            redisTemplate.opsForValue().set(dedupKey, "1", Duration.ofMinutes(ttl));
         }
 
         // Cooldown 키 등록

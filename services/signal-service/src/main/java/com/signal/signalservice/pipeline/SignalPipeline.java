@@ -58,7 +58,8 @@ public class SignalPipeline {
             return;
         }
 
-        evaluateAndPublish(event.stockCode(), event.stockName(), triggered);
+        String stockName = event.stockName() != null ? event.stockName() : event.stockCode();
+        evaluateAndPublish(event.stockCode(), stockName, triggered);
     }
 
     /**
@@ -70,7 +71,8 @@ public class SignalPipeline {
             return;
         }
 
-        evaluateAndPublish(event.stockCode(), event.stockName(), List.of(result));
+        String stockName = event.stockName() != null ? event.stockName() : event.stockCode();
+        evaluateAndPublish(event.stockCode(), stockName, List.of(result));
     }
 
     /**
@@ -82,7 +84,8 @@ public class SignalPipeline {
             return;
         }
 
-        evaluateAndPublish(event.stockCode(), event.corpName(), List.of(result));
+        String corpName = event.corpName() != null ? event.corpName() : event.stockCode();
+        evaluateAndPublish(event.stockCode(), corpName, List.of(result));
     }
 
     private void evaluateAndPublish(String stockCode, String stockName, List<ScanResult> triggered) {

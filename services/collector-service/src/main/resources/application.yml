@@ -15,7 +15,6 @@ spring:
 # Kafka Producer
 # ================================
   kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
@@ -56,7 +55,6 @@ collector:
       cron: "0 0/5 15-18 * * MON-FRI"   # 시간외 5분 간격 (15:30~18:00)
     news:
       cron: "0 0/10 * * * MON-FRI"      # 뉴스/공시 10분 간격
-  stock-codes: ${STOCK_CODES:005930,000660,035420} # 삼성전자, SK하이닉스, NAVER
 
 # ================================
 # Trading Session (KST 기준)

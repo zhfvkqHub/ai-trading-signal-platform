@@ -77,9 +77,10 @@ public class AfterHoursCollector {
                 log.debug("KIS 시간외 데이터 없음 [stockCode={}]", stockCode);
                 return;
             }
+            String stockName = collectorProperties.getStockName(stockCode);
             RawAfterHoursEvent event = new RawAfterHoursEvent(
                     stockCode,
-                    stockCode,  // 시간외 API에는 종목명이 없으므로 코드로 대체
+                    stockName,
                     new BigDecimal(output.afterHoursPrice()),
                     new BigDecimal(output.afterHoursVolume()),
                     BigDecimal.ZERO,  // 매수 대기 물량 (해당 필드 없음)

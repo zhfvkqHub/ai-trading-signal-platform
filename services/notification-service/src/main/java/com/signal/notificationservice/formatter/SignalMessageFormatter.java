@@ -43,9 +43,10 @@ public class SignalMessageFormatter {
                 .append(bold)
                 .append("\n");
         sb.append("━━━━━━━━━━━━━━━━━━━━\n");
+        String displayName = event.stockName() != null ? event.stockName() : event.stockCode();
         sb.append("종목: ")
                 .append(bold)
-                .append(event.stockName())
+                .append(displayName)
                 .append(bold)
                 .append(" (")
                 .append(event.stockCode())
