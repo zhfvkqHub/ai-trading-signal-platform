@@ -27,6 +27,8 @@ public class ScannerProperties {
     @Setter
     public static class GapUp {
         private double thresholdPercent = 3.0;
+        /** 장 시작(09:00) 후 갭상승 스캔 허용 시간(분). 이후에는 스캔하지 않음 */
+        private int cutoffMinutes = 30;
     }
 
     @Getter

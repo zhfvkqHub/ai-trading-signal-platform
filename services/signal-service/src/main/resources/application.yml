@@ -59,6 +59,7 @@ scanner:
     last-volume-ttl-hours: 2   # 최근 누적 거래량 TTL
   gap-up:
     threshold-percent: 1.5     # 갭상승률 1.5% 이상
+    cutoff-minutes: 30         # 장 시작(09:00) 후 30분까지만 갭상승 스캔
   after-hours-surge:
     buy-sell-ratio-threshold: 1.5   # 매수/매도 비율 1.5 이상
     price-ttl-hours: 18             # 시간외 데이터 TTL

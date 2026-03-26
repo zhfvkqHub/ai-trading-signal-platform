@@ -11,11 +11,16 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalTime;
+import java.time.ZoneId;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class GapUpScanner {
+
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final LocalTime MARKET_OPEN = LocalTime.of(9, 0);
 
     private final StringRedisTemplate redisTemplate;
     private final ScannerProperties scannerProperties;
@@ -23,6 +28,14 @@ public class GapUpScanner {
     public ScanResult scan(RawMarketEvent event) {
         ScannerProperties.GapUp config = scannerProperties.getGapUp();
         String stockCode = event.stockCode();
+
+        // 장 시작 후 cutoffMinutes 이내에만 갭상승 스캔
+        LocalTime now = LocalTime.now(KST);
+        LocalTime cutoff = MARKET_OPEN.plusMinutes(config.getCutoffMinutes());
+        if (now.isAfter(cutoff)) {
+            return ScanResult.notTriggered(SignalType.GAP_UP, stockCode);
+        }
+
         BigDecimal openPrice = event.openPrice();
         BigDecimal prevClosePrice = event.prevClosePrice();
 
