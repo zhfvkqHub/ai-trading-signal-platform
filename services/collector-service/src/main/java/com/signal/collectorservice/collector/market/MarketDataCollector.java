@@ -18,8 +18,10 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Component
@@ -33,6 +35,7 @@ public class MarketDataCollector {
     private final RateLimiter kisRateLimiter;
 
     private static final String TRACE_ID_KEY = "traceId";
+    private final Map<String, String> stockNameCache = new ConcurrentHashMap<>();
 
     /**
      * 매일 장중 정해진 시간마다 KIS 시세 조회 API를 호출하여 실시간 시세를 수집한다.
@@ -77,9 +80,16 @@ public class MarketDataCollector {
             }
 
             KisMarketResponse.Output output = response.output();
+            String stockName = output.stockName();
+            if (stockName != null && !stockName.isBlank()) {
+                stockNameCache.put(stockCode, stockName);
+            } else {
+                stockName = stockNameCache.getOrDefault(stockCode, stockCode);
+                log.warn("KIS 종목명 누락, 캐시 사용 [stockCode={}, stockName={}]", stockCode, stockName);
+            }
             RawMarketEvent event = new RawMarketEvent(
                     stockCode,
-                    output.stockName(),
+                    stockName,
                     new BigDecimal(output.currentPrice()),
                     new BigDecimal(output.openPrice()),
                     new BigDecimal(output.highPrice()),
