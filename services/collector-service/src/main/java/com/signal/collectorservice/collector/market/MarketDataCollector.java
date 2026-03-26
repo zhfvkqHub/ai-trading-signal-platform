@@ -36,9 +36,6 @@ public class MarketDataCollector {
 
     /**
      * 매일 장중 정해진 시간마다 KIS 시세 조회 API를 호출하여 실시간 시세를 수집한다.
-     - 수집 대상: 모니터링 대상 종목 전체
-     - 수집 내용: 현재가, 시가, 고가, 저가, 전일 종가, 거래량, 거래대금 등
-     - 발행: 수집된 시세 정보를 Kafka로 발행하여 후속 처리 시스템에서 소비하도록 함
      */
     @Scheduled(cron = "${collector.schedule.market.cron}")
     public void collect() {

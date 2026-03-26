@@ -37,9 +37,6 @@ public class NewsCollector {
 
     /**
      * 매일 정해진 시간에 DART 공시보고서 조회 API를 호출하여 신규 공시보고서를 수집한다.
-     - 수집 대상: 오늘 접수된 공시보고서 중 모니터링 대상 종목에 해당하는 보고서
-     - 중복 방지: 마지막으로 수집한 접수번호 이후의 보고서만 처리
-     - 발행: 수집된 보고서를 Kafka로 발행하여 후속 처리 시스템에서 소비하도록 함
      */
     @Scheduled(cron = "${collector.schedule.news.cron}")
     public void collect() {
@@ -87,7 +84,9 @@ public class NewsCollector {
                 RawNewsEvent event = new RawNewsEvent(
                         item.stockCode(),
                         item.corpName(),
-                        item.reportName(),
+                        item.reportName()
+                                .replaceAll("\\s+", " ")
+                                .trim(),
                         item.receiptNo(),
                         item.receiptDate(),
                         item.filerName(),

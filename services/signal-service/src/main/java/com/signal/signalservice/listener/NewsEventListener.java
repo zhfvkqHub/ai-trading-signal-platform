@@ -31,8 +31,7 @@ public class NewsEventListener {
 
         try {
             RawNewsEvent event = kafkaRecord.value();
-            log.debug("뉴스 데이터 수신 [stockCode={}, report={}]",
-                    event.stockCode(), event.reportName());
+            log.debug("뉴스 데이터 수신 [stockCode={}, report={}]", event.stockCode(), event.reportName());
             pipeline.processNewsEvent(event);
         } catch (Exception e) {
             log.error("뉴스 데이터 처리 실패 [key={}]", kafkaRecord.key(), e);

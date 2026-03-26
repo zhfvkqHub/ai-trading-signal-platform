@@ -20,14 +20,13 @@ public class SignalPublisher {
 
     public void publishDetected(SignalDetectedEvent event) {
         publish(topicProperties.getSignalDetected(), event.stockCode(), event);
-        log.info("신호 발행 [stockCode={}, score={}, types={}]",
-                event.stockCode(), event.score(), event.signalTypes());
+        log.info("신호 발행 [stockCode={}, score={}, types={}]", event.stockCode(), event.score(),
+                event.signalTypes());
     }
 
     public void publishRejected(SignalRejectedEvent event) {
         publish(topicProperties.getSignalRejected(), event.stockCode(), event);
-        log.debug("거부 신호 발행 [stockCode={}, reason={}]",
-                event.stockCode(), event.rejectionReason());
+        log.debug("거부 신호 발행 [stockCode={}, reason={}]", event.stockCode(), event.rejectionReason());
     }
 
     private void publish(String topic, String key, Object event) {
@@ -42,8 +41,9 @@ public class SignalPublisher {
             if (ex != null) {
                 log.error("Kafka 발행 실패 [topic={}, key={}]", topic, key, ex);
             } else {
-                log.debug("Kafka 발행 성공 [topic={}, key={}, offset={}]",
-                        topic, key, result.getRecordMetadata().offset());
+                log.debug("Kafka 발행 성공 [topic={}, key={}, offset={}]", topic, key,
+                        result.getRecordMetadata()
+                                .offset());
             }
         });
     }

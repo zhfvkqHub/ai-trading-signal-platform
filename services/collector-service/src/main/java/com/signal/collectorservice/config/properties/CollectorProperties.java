@@ -14,7 +14,6 @@ import java.util.Map;
 public class CollectorProperties {
 
     private List<String> stockCodes = List.of();
-    /** 종목코드 → 종목명 매핑 (KIS API가 종목명을 미제공하므로 설정으로 관리) */
     private Map<String, String> stockNames = new HashMap<>();
 
     public String getStockName(String stockCode) {

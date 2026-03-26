@@ -50,9 +50,9 @@ dart:
 collector:
   schedule:
     market:
-      cron: "0/30 * 9-15 * * MON-FRI"   # 장중 30초 간격 (09:00~15:30)
+      cron: "0/30 * 9-15 * * MON-FRI"   # 장중 30초 간격
     after-hours:
-      cron: "0 0/5 15-18 * * MON-FRI"   # 시간외 5분 간격 (15:30~18:00)
+      cron: "0/30 * 15-20 * * MON-FRI"   # 시간외 5분 간격
     news:
       cron: "0 0/10 * * * MON-FRI"      # 뉴스/공시 10분 간격
 
@@ -69,7 +69,7 @@ trading:
       end: "15:30"
     after-hours:
       start: "15:30"
-      end: "18:00"
+      end: "20:00"
 
 # ================================
 # Kafka Topics

@@ -35,25 +35,6 @@ Phase 7. 운영성
 
 ---
 
-## Phase 2. 장 시간 관리
-
-### 2-1. `TradingSessionManager`
-
-- [x] 영업일 판단 (공휴일 제외) — `java.time` + 한국 고정 공휴일 8개
-- [x] 현재 세션 반환 (`TradingSession`)
-    - `PRE_MARKET` : 08:00 ~ 09:00
-    - `REGULAR` : 09:00 ~ 15:30
-    - `AFTER_HOURS` : 15:30 ~ 18:00
-    - `CLOSED` : 그 외 (수집 차단)
-- [x] 세션별 수집 활성화 여부 판단 메서드
-
-### 2-2. `TradingSessionProperties`
-
-- [x] `@ConfigurationProperties(prefix = "trading.session")` — 장 시간 설정 바인딩
-- [x] preMarket, regular, afterHours 각각 TimeRange(start, end) 내부 클래스
-
----
-
 ## Phase 3. KIS API 클라이언트
 
 > 공식 문서: https://apiportal.koreainvestment.com
@@ -83,15 +64,9 @@ Phase 7. 운영성
 ### 3-4. 시간외 단일가 조회 (`client/kis/afterhours/`)
 
 - [x] `KisAfterHoursFeignClient`
-    - GET `/uapi/domestic-stock/v1/quotations/inquire-daily-overtimeprice`
+  - GET `/uapi/domestic-stock/v1/quotations/inquire-overtime-price`
     - 수집 항목: 시간외 현재가, 시간외 거래량/거래대금, 상·하한가, 당일 종가, 순매수 수량, 예상 체결량
 - [x] `KisAfterHoursResponse` — API 응답 매핑
-
-### 3-5. Rate Limit 처리
-
-- [x] KIS API 제한 설정: **초당 19건** (20건 한도에서 여유분 확보)
-- [ ] `RateLimiter` 적용 (Resilience4j) — 수집기 레벨에서 적용
-- [x] 429 응답 시 `KisRateLimitException` + Feign Retryer 자동 재시도 (100ms~1s, 3회)
 
 ---
 
@@ -237,29 +212,6 @@ com.signal.collectorservice
     ├── TradingSession.java
     └── DataSource.java
 ```
-
----
-
-## 환경변수 / 시크릿 목록
-
-| 키                         | 설명                   |
-|---------------------------|----------------------|
-| `KIS_APP_KEY`             | KIS Developers 앱 키   |
-| `KIS_APP_SECRET`          | KIS Developers 앱 시크릿 |
-| `KIS_ACCOUNT_NO`          | 계좌번호                 |
-| `DART_API_KEY`            | DART OpenAPI 인증키     |
-
----
-
-## 남은 작업 (추후)
-
-- [ ] Resilience4j `RateLimiter` 적용 (KIS/DART 수집기 레벨)
-- [ ] Redis 기반 공시 중복 방지
-- [ ] Dead Letter Queue (DLQ) 설정
-- [ ] Kafka Producer 연결 상태 HealthIndicator
-- [ ] 메트릭 (토픽별 발행 건수, API 응답 시간, Rate Limit 초과 횟수)
-
----
 
 ## 참고 링크
 

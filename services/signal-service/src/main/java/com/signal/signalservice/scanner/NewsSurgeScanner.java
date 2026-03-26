@@ -33,8 +33,8 @@ public class NewsSurgeScanner {
         }
 
         if (count != null && count >= config.getThresholdCount()) {
-            String reason = String.format("뉴스 급증: %d분 내 %d건 (보고서: %s)",
-                    config.getWindowMinutes(), count, event.reportName());
+            String reason = String.format("뉴스 급증: %d분 내 %d건 (보고서: %s)", config.getWindowMinutes(),
+                    count, event.reportName());
             log.info("[NEWS_SURGE] {} - {}", stockCode, reason);
             return ScanResult.triggered(SignalType.NEWS_SURGE, stockCode, reason, count.doubleValue());
         }

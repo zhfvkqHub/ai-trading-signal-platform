@@ -7,7 +7,11 @@ import com.signal.signalservice.model.SignalType;
 import com.signal.signalservice.publisher.SignalDetectedEvent;
 import com.signal.signalservice.publisher.SignalPublisher;
 import com.signal.signalservice.publisher.SignalRejectedEvent;
-import com.signal.signalservice.scanner.*;
+import com.signal.signalservice.scanner.AfterHoursSurgeScanner;
+import com.signal.signalservice.scanner.GapUpScanner;
+import com.signal.signalservice.scanner.NewsSurgeScanner;
+import com.signal.signalservice.scanner.ScanResult;
+import com.signal.signalservice.scanner.VolumeSurgeScanner;
 import com.signal.signalservice.scorer.SignalScorer;
 import com.signal.signalservice.validator.SignalValidator;
 import lombok.RequiredArgsConstructor;
@@ -52,14 +56,12 @@ public class SignalPipeline {
         }
 
         if (triggered.isEmpty()) {
-            log.info("시장 데이터 분석 완료: 신호 미감지 [stockCode={}, volume={}, gapResult={}, volumeResult={}]",
-                    event.stockCode(), event.volume(),
-                    gapResult.triggered(), volumeResult.triggered());
+            log.info("시장 데이터 분석 완료: 신호 미감지 [stockCode={}, volume={}]", event.stockCode(),
+                    event.volume());
             return;
         }
 
-        String stockName = event.stockName() != null ? event.stockName() : event.stockCode();
-        evaluateAndPublish(event.stockCode(), stockName, triggered);
+        evaluateAndPublish(event.stockCode(), event.stockName(), triggered);
     }
 
     /**
@@ -103,8 +105,8 @@ public class SignalPipeline {
         if (!scorer.meetsMinimum(score)) {
             log.debug("최소 점수 미달 [stockCode={}, score={}]", stockCode, score);
             publisher.publishRejected(new SignalRejectedEvent(
-                    stockCode, stockName, signalTypes, score,
-                    "최소 점수 미달: " + score, Instant.now(), traceId));
+                    stockCode, stockName, signalTypes, score, "최소 점수 미달: " + score, Instant.now(),
+                    traceId));
             return;
         }
 

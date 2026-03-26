@@ -24,8 +24,8 @@ public class KisApiConfig {
 
     @Bean
     public Retryer kisRetryer() {
-        // 429/5xx 시 100ms 시작, 최대 1s, 3회 재시도
-        return new Retryer.Default(100, 1000, 3);
+        // 수집 실패 시 다음 스케줄 주기(30초)에 자동 재시도됨
+        return Retryer.NEVER_RETRY;
     }
 
     @Bean

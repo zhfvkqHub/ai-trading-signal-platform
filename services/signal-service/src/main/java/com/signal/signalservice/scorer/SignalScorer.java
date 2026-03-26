@@ -48,9 +48,9 @@ public class SignalScorer {
         int comboBonus = 0;
         if (signalCount >= 4) {
             comboBonus = scorerProperties.getComboBonus4();
-        } else if (signalCount >= 3) {
+        } else if (signalCount == 3) {
             comboBonus = scorerProperties.getComboBonus3();
-        } else if (signalCount >= 2) {
+        } else if (signalCount == 2) {
             comboBonus = scorerProperties.getComboBonus2();
         }
 
