@@ -16,7 +16,7 @@ public record KisMarketResponse(
             @JsonProperty("stck_sdpr") String prevClosePrice,   // 전일 종가 (기준가)
             @JsonProperty("acml_vol") String accumulatedVolume, // 누적 거래량
             @JsonProperty("acml_tr_pbmn") String tradingValue,  // 누적 거래대금
-            @JsonProperty("hts_kor_isnm") String stockName      // 종목명
+            @JsonProperty("bstp_kor_isnm") String stockName        // 업종 한글 종목명
     ) {
     }
 }
