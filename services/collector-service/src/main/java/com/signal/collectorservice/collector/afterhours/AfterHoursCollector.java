@@ -65,7 +65,7 @@ public class AfterHoursCollector {
         MDC.put(TRACE_ID_KEY, traceId);
         try {
             KisAfterHoursResponse response = afterHoursClient.fetchAfterHoursPrice(
-                    "FHKST01010200", "J", stockCode);
+                    "FHPST02300000", "J", stockCode);
 
             if (!"0".equals(response.returnCode())) {
                 log.warn("KIS 시간외 조회 실패 [stockCode={}, msg={}]", stockCode, response.message());

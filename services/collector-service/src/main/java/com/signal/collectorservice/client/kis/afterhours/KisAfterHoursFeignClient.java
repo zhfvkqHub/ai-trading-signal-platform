@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 )
 public interface KisAfterHoursFeignClient {
 
-    @GetMapping("/uapi/domestic-stock/v1/quotations/inquire-daily-overtimeprice")
+    @GetMapping("/uapi/domestic-stock/v1/quotations/inquire-overtime-price")
     KisAfterHoursResponse fetchAfterHoursPrice(
             @RequestHeader("tr_id") String trId,
             @RequestParam("FID_COND_MRKT_DIV_CODE") String marketDivCode,
