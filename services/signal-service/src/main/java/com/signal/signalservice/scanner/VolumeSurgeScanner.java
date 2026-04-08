@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -74,6 +75,29 @@ public class VolumeSurgeScanner {
                 Duration.ofHours(config.getEodTtlHours()));
 
         if (ratio >= config.getThresholdRatio()) {
+            // 가격 방향 필터: 현재가가 시가 대비 상승 중인지 확인
+            if (config.isRequirePriceUp()
+                    && event.openPrice() != null
+                    && event.openPrice()
+                    .compareTo(BigDecimal.ZERO) > 0
+                    && event.price() != null) {
+                double priceChangeRate = event.price()
+                        .subtract(event.openPrice())
+                        .divide(event.openPrice(), 6, RoundingMode.HALF_UP)
+                        .multiply(BigDecimal.valueOf(100))
+                        .doubleValue();
+                if (priceChangeRate < config.getMinPriceChangeRate()) {
+                    log.debug("[VOLUME_SURGE] 가격 하락 중 거래량 급증 - 제외 [stockCode={}, priceChange={}%]",
+                            stockCode, String.format("%.2f", priceChangeRate));
+                    return ScanResult.notTriggered(SignalType.VOLUME_SURGE, stockCode);
+                }
+                String reason = String.format(
+                        "거래량 급증 + 상승 확인: 현재 %s / 전일 %s (%.1f배), 시가대비 +%.2f%%",
+                        currentVolume.toPlainString(), eodVolumeStr, ratio, priceChangeRate);
+                log.info("[VOLUME_SURGE] {} - {}", stockCode, reason);
+                return ScanResult.triggered(SignalType.VOLUME_SURGE, stockCode, reason, ratio);
+            }
+
             String reason = String.format("거래량 급증: 현재 %s / 전일 %s (%.1f배)",
                     currentVolume.toPlainString(), eodVolumeStr, ratio);
             log.info("[VOLUME_SURGE] {} - {}", stockCode, reason);
