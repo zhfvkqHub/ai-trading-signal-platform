@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -31,24 +32,41 @@ public class NewsSurgeScanner {
             return ScanResult.notTriggered(SignalType.NEWS_SURGE, stockCode);
         }
 
-        // Redis INCR 카운터 + 윈도우 TTL
-        String countKey = String.format(RedisKeyConstants.NEWS_COUNT, stockCode);
-        Long count = redisTemplate.opsForValue().increment(countKey);
+        // [B3 수정] ZSET 슬라이딩 윈도우 — INCR+TTL 고정 버킷 방식 제거
+        String zsetKey = String.format(RedisKeyConstants.NEWS_ZSET, stockCode);
+        long nowEpoch = event.collectedAt()
+                .getEpochSecond();
+        long windowStart = nowEpoch - (long) config.getWindowMinutes() * 60;
 
-        if (count != null && count == 1) {
-            // 첫 번째 카운트일 때 TTL 설정
-            redisTemplate.expire(countKey, Duration.ofMinutes(config.getWindowMinutes()));
-        }
+        // receiptNo|reportName 형태로 멤버 구성 (감성 분석 재활용)
+        String receiptNo = event.receiptNo() != null ? event.receiptNo() : String.valueOf(nowEpoch);
+        // 파이프(|) 구분자 충돌 방지
+        String member = receiptNo + "|" + reportName.replace("|", "/");
 
-        if (count != null && count >= config.getThresholdCount()) {
-            boolean bullish = isBullish(reportName, config);
-            String sentiment = bullish ? "BULLISH" : "NEUTRAL";
-            String reason = String.format("공시 급증(%s): %d분 내 %d건 (보고서: %s)",
+        // 현재 공시 추가 → 윈도우 밖 항목 제거 → 잔존 건수 조회
+        redisTemplate.opsForZSet()
+                .add(zsetKey, member, nowEpoch);
+        redisTemplate.opsForZSet()
+                .removeRangeByScore(zsetKey, 0, windowStart - 1);
+        // 키 TTL: 윈도우 + 여유분 (만료 후 자동 정리)
+        redisTemplate.expire(zsetKey, Duration.ofMinutes(config.getWindowMinutes() + 5));
+
+        Set<String> windowMembers = redisTemplate.opsForZSet()
+                .range(zsetKey, 0, -1);
+        long count = windowMembers != null ? windowMembers.size() : 0;
+
+        if (count >= config.getThresholdCount()) {
+            // [B4 수정] 트리거 시점 단일 공시가 아닌 윈도우 전체 공시로 감성 판단
+            boolean hasBullish = windowMembers.stream()
+                    .map(m -> m.contains("|") ? m.substring(m.indexOf("|") + 1) : m)
+                    .anyMatch(name -> isBullish(name, config) && !isBearish(name, config));
+
+            String sentiment = hasBullish ? "BULLISH" : "NEUTRAL";
+            String reason = String.format("공시 급증(%s): %d분 내 %d건 (최신: %s)",
                     sentiment, config.getWindowMinutes(), count, reportName);
             log.info("[NEWS_SURGE] {} - {}", stockCode, reason);
             return ScanResult.triggered(SignalType.NEWS_SURGE, stockCode, reason,
-                    count.doubleValue(),
-                    Map.of("sentiment", sentiment));
+                    (double) count, Map.of("sentiment", sentiment));
         }
 
         return ScanResult.notTriggered(SignalType.NEWS_SURGE, stockCode);

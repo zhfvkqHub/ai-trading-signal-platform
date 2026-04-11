@@ -37,29 +37,38 @@ public class VolumeSurgeScanner {
             return ScanResult.notTriggered(SignalType.VOLUME_SURGE, stockCode);
         }
 
-        // EOD 거래량 조회 (전일)
+        // 전일 EOD 거래량 조회 (read-only baseline — 매 틱 갱신하지 않음)
         String yesterday = LocalDate.now(KST).minusDays(1).format(DATE_FORMAT);
         String eodKey = String.format(RedisKeyConstants.VOLUME_EOD, yesterday, stockCode);
         String eodVolumeStr = redisTemplate.opsForValue().get(eodKey);
 
-        // 현재 누적 거래량을 last 키에 갱신 (last-write-wins)
         String lastKey = String.format(RedisKeyConstants.VOLUME_LAST, stockCode);
-        redisTemplate.opsForValue().set(lastKey, currentVolume.toPlainString(),
-                Duration.ofHours(config.getLastVolumeTtlHours()));
 
         if (eodVolumeStr == null) {
-            // EOD 데이터 없으면 현재 데이터를 전일 EOD 기준으로 부트스트랩
-            // → 이후 이벤트부터 이 기준 대비 거래량 비교 가능
-            log.info("[VOLUME_SURGE] EOD 부트스트랩 [stockCode={}, baselineVolume={}]",
-                    stockCode, currentVolume.toPlainString());
-            redisTemplate.opsForValue().set(eodKey, currentVolume.toPlainString(),
+            // 전일 EOD 없음 → lastKey(이전 세션 마지막 누적량)로 부트스트랩
+            // SET NX로 다른 인스턴스/재처리가 덮어쓰는 것을 방지
+            String prevVolumeStr = redisTemplate.opsForValue()
+                    .get(lastKey);
+            String baselineVolume =
+                    (prevVolumeStr != null) ? prevVolumeStr : currentVolume.toPlainString();
+            Boolean set = redisTemplate.opsForValue()
+                    .setIfAbsent(eodKey, baselineVolume,
                     Duration.ofHours(config.getEodTtlHours()));
-            String todayEodKey = String.format(RedisKeyConstants.VOLUME_EOD,
-                    LocalDate.now(KST).format(DATE_FORMAT), stockCode);
-            redisTemplate.opsForValue().set(todayEodKey, currentVolume.toPlainString(),
-                    Duration.ofHours(config.getEodTtlHours()));
+            if (Boolean.TRUE.equals(set)) {
+                log.info("[VOLUME_SURGE] EOD 부트스트랩 [stockCode={}, baselineVolume={}]",
+                        stockCode, baselineVolume);
+            }
+            // 현재 누적 거래량 갱신 (다음 세션 부트스트랩 기준값)
+            redisTemplate.opsForValue()
+                    .set(lastKey, currentVolume.toPlainString(),
+                            Duration.ofHours(config.getLastVolumeTtlHours()));
             return ScanResult.notTriggered(SignalType.VOLUME_SURGE, stockCode);
         }
+
+        // 현재 누적 거래량 갱신 (다음 세션 부트스트랩 기준값)
+        redisTemplate.opsForValue()
+                .set(lastKey, currentVolume.toPlainString(),
+                        Duration.ofHours(config.getLastVolumeTtlHours()));
 
         BigDecimal eodVolume = new BigDecimal(eodVolumeStr);
         if (eodVolume.compareTo(BigDecimal.ZERO) <= 0) {
@@ -68,19 +77,16 @@ public class VolumeSurgeScanner {
 
         double ratio = currentVolume.doubleValue() / eodVolume.doubleValue();
 
-        // 오늘 EOD 스냅샷 갱신
-        String todayEodKey = String.format(RedisKeyConstants.VOLUME_EOD,
-                LocalDate.now(KST).format(DATE_FORMAT), stockCode);
-        redisTemplate.opsForValue().set(todayEodKey, currentVolume.toPlainString(),
-                Duration.ofHours(config.getEodTtlHours()));
-
         if (ratio >= config.getThresholdRatio()) {
-            // 가격 방향 필터: 현재가가 시가 대비 상승 중인지 확인
-            if (config.isRequirePriceUp()
-                    && event.openPrice() != null
-                    && event.openPrice()
-                    .compareTo(BigDecimal.ZERO) > 0
-                    && event.price() != null) {
+            // [B7 수정] requirePriceUp=true 일 때 가격 데이터 없으면 제외 (기존 코드는 역으로 통과시켰음)
+            if (config.isRequirePriceUp()) {
+                if (event.openPrice() == null || event.openPrice()
+                        .compareTo(BigDecimal.ZERO) <= 0
+                        || event.price() == null) {
+                    log.debug("[VOLUME_SURGE] 가격 데이터 미제공으로 방향 필터 적용 불가 - 제외 [stockCode={}]",
+                            stockCode);
+                    return ScanResult.notTriggered(SignalType.VOLUME_SURGE, stockCode);
+                }
                 double priceChangeRate = event.price()
                         .subtract(event.openPrice())
                         .divide(event.openPrice(), 6, RoundingMode.HALF_UP)

@@ -119,8 +119,14 @@ public class SignalPipeline {
             return;
         }
 
-        // 유효 신호 발행
-        validator.recordSignalEmission(stockCode, signalTypes);
+        // 유효 신호 발행 (recordSignalEmission이 false이면 쿨다운 레이스 — 발행 중단)
+        boolean recorded = validator.recordSignalEmission(stockCode, signalTypes);
+        if (!recorded) {
+            publisher.publishRejected(new SignalRejectedEvent(
+                    stockCode, stockName, signalTypes, score,
+                    "쿨다운 레이스: 동시 신호 차단", Instant.now(), traceId));
+            return;
+        }
         publisher.publishDetected(new SignalDetectedEvent(
                 stockCode, stockName, signalTypes, score,
                 reasons, Instant.now(), traceId));

@@ -65,6 +65,7 @@ scanner:
   after-hours-surge:
     buy-sell-ratio-threshold: 1.5   # 매수/매도 비율 1.5 이상
     price-ttl-hours: 18             # 시간외 데이터 TTL
+    min-buy-volume: 100000          # 최소 매수 잔량 (소량 노이즈 필터)
   news-surge:
     threshold-count: 3         # 뉴스 카운트 임계값
     window-minutes: 30         # 뉴스 윈도우
@@ -114,7 +115,7 @@ scorer:
   combo-bonus-3: 20            # 3개 신호 동시 (표준)
   combo-bonus-4: 30            # 4개 신호 동시 (표준)
   combo-bonus-premium: 35      # 프리미엄 조합(시간외+갭상승+거래량) 보너스
-  min-score: 20                # 25→20 (GAP_UP 단독 발행 허용)
+  min-score: 35                # 단일 신호만으로는 통과 불가 — 강도 보너스 또는 복합 신호 요구
   bullish-news-bonus: 10       # 호재 공시로 분류된 NEWS_SURGE 추가 보너스
   intensity:
     VOLUME_SURGE:

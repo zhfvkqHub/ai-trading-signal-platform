@@ -46,6 +46,10 @@ public class ScannerProperties {
     public static class AfterHoursSurge {
         private double buySellRatioThreshold = 1.5;
         private int priceTtlHours = 18;
+        /**
+         * 신호 발생을 허용할 최소 매수 잔량. 소량 거래 노이즈 필터링
+         */
+        private long minBuyVolume = 100000;
     }
 
     @Getter

@@ -30,9 +30,12 @@ public class GapUpScanner {
         String stockCode = event.stockCode();
 
         // 장 시작 후 cutoffMinutes 이내에만 갭상승 스캔
-        LocalTime now = LocalTime.now(KST);
+        // [B6 수정] 벽시계 대신 이벤트 수집 시각 사용 (Kafka 리플레이/지연 처리 대응)
+        LocalTime eventTime = event.collectedAt()
+                .atZone(KST)
+                .toLocalTime();
         LocalTime cutoff = MARKET_OPEN.plusMinutes(config.getCutoffMinutes());
-        if (now.isAfter(cutoff)) {
+        if (eventTime.isAfter(cutoff)) {
             return ScanResult.notTriggered(SignalType.GAP_UP, stockCode);
         }
 
