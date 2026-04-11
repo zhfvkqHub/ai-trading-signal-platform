@@ -15,6 +15,7 @@ public class ScannerProperties {
     private GapUp gapUp = new GapUp();
     private AfterHoursSurge afterHoursSurge = new AfterHoursSurge();
     private NewsSurge newsSurge = new NewsSurge();
+    private Breakout breakout = new Breakout();
 
     @Getter
     @Setter
@@ -55,6 +56,17 @@ public class ScannerProperties {
          * 신호 발생을 허용할 최소 매수 잔량. 소량 거래 노이즈 필터링
          */
         private long minBuyVolume = 100000;
+    }
+
+    @Getter
+    @Setter
+    public static class Breakout {
+        /** N일 최고가 기준 기간 */
+        private int periodDays = 20;
+        /** 신호 활성화까지 필요한 최소 누적 일수 (데이터가 쌓이는 동안 대기) */
+        private int minDataDays = 5;
+        /** 최소 돌파율(%). 0이면 최고가와 동일해도 트리거 */
+        private double minBreakoutPercent = 0.5;
     }
 
     @Getter

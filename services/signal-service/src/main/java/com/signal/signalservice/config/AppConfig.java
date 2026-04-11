@@ -1,5 +1,6 @@
 package com.signal.signalservice.config;
 
+import com.signal.signalservice.config.properties.FeedbackProperties;
 import com.signal.signalservice.config.properties.KafkaTopicProperties;
 import com.signal.signalservice.config.properties.ScannerProperties;
 import com.signal.signalservice.config.properties.ScorerProperties;
@@ -12,7 +13,8 @@ import org.springframework.context.annotation.Configuration;
         KafkaTopicProperties.class,
         ScannerProperties.class,
         ScorerProperties.class,
-        ValidatorProperties.class
+        ValidatorProperties.class,
+        FeedbackProperties.class
 })
 public class AppConfig {
 }
