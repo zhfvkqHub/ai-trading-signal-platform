@@ -1,5 +1,14 @@
 .env
 .idea
+.DS_Store
+
+# Gradle 빌드 산출물
+build/
+**/build/
+.gradle/
+**/.gradle/
+gradle/
+*.jar
 
 # 로컬 시크릿 설정 파일
 **/application-local.yml
