@@ -54,6 +54,27 @@ public class SignalScorer {
             log.debug("콤보 보너스: +{}점", comboBonus);
         }
 
+        // [S3] VOLUME_SURGE 가격 상승률 구간별 강도 보너스
+        for (ScanResult result : triggeredResults) {
+            if (result.signalType() == SignalType.VOLUME_SURGE) {
+                String pcrStr = result.getMetadata("priceChangeRate");
+                if (!pcrStr.isEmpty()) {
+                    double pcr = Double.parseDouble(pcrStr);
+                    int priceBonus = 0;
+                    if (pcr >= scorerProperties.getVolumePriceChangeTier3Rate()) {
+                        priceBonus = scorerProperties.getIntensityTier3Bonus();
+                    } else if (pcr >= scorerProperties.getVolumePriceChangeTier2Rate()) {
+                        priceBonus = scorerProperties.getIntensityTier2Bonus();
+                    }
+                    if (priceBonus > 0) {
+                        totalScore += priceBonus;
+                        log.debug("거래량+상승률 강도 보너스: +{}점 (priceChange={}%)", priceBonus,
+                                String.format("%.2f", pcr));
+                    }
+                }
+            }
+        }
+
         // 호재 공시 추가 보너스
         boolean hasBullishNews = triggeredResults.stream()
                 .anyMatch(r -> r.signalType() == SignalType.NEWS_SURGE

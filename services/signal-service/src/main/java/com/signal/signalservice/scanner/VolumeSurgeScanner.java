@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
 @Slf4j
 @Component
@@ -34,6 +35,18 @@ public class VolumeSurgeScanner {
 
         // 최소 거래량 필터
         if (currentVolume.longValue() < config.getMinVolume()) {
+            return ScanResult.notTriggered(SignalType.VOLUME_SURGE, stockCode);
+        }
+
+        // [D5] 최소 거래대금 필터 — 소형주 노이즈 차단 (tradingValue=0이면 데이터 미제공으로 통과)
+        if (config.getMinTradingValue() > 0 && event.tradingValue() != null
+                && event.tradingValue()
+                .compareTo(BigDecimal.ZERO) > 0
+                && event.tradingValue()
+                .longValue() < config.getMinTradingValue()) {
+            log.debug("[VOLUME_SURGE] 거래대금 미달 - 제외 [stockCode={}, tradingValue={}]",
+                    stockCode, event.tradingValue()
+                            .toPlainString());
             return ScanResult.notTriggered(SignalType.VOLUME_SURGE, stockCode);
         }
 
@@ -101,7 +114,9 @@ public class VolumeSurgeScanner {
                         "거래량 급증 + 상승 확인: 현재 %s / 전일 %s (%.1f배), 시가대비 +%.2f%%",
                         currentVolume.toPlainString(), eodVolumeStr, ratio, priceChangeRate);
                 log.info("[VOLUME_SURGE] {} - {}", stockCode, reason);
-                return ScanResult.triggered(SignalType.VOLUME_SURGE, stockCode, reason, ratio);
+                // [S3] priceChangeRate를 메타데이터로 전달 → SignalScorer에서 상승률 구간별 강도 보너스 적용
+                return ScanResult.triggered(SignalType.VOLUME_SURGE, stockCode, reason, ratio,
+                        Map.of("priceChangeRate", String.format("%.4f", priceChangeRate)));
             }
 
             String reason = String.format("거래량 급증: 현재 %s / 전일 %s (%.1f배)",

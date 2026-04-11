@@ -27,6 +27,12 @@ public class ScorerProperties {
      * NEWS_SURGE가 호재(BULLISH)로 분류됐을 때 추가 보너스
      */
     private int bullishNewsBonus = 10;
+    /**
+     * VOLUME_SURGE의 시가대비 상승률(%) 구간별 강도 임계값. requirePriceUp=true 일 때만 적용되며,
+     * intensityTier2/Tier3Bonus 값을 재사용한다.
+     */
+    private double volumePriceChangeTier2Rate = 1.0;  // 1% 이상 → tier2 보너스
+    private double volumePriceChangeTier3Rate = 3.0;  // 3% 이상 → tier3 보너스
 
     @Getter
     @Setter

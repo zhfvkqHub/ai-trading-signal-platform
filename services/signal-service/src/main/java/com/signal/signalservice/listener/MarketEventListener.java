@@ -31,7 +31,7 @@ public class MarketEventListener {
 
         try {
             RawMarketEvent event = kafkaRecord.value();
-            log.info("시장 데이터 수신 [stockCode={}, price={}, volume={}]",
+            log.debug("시장 데이터 수신 [stockCode={}, price={}, volume={}]",
                     event.stockCode(), event.price(), event.volume());
             pipeline.processMarketEvent(event);
         } catch (Exception e) {
@@ -47,6 +47,7 @@ public class MarketEventListener {
         if (header != null) {
             return new String(header.value(), StandardCharsets.UTF_8);
         }
-        return UUID.randomUUID().toString().substring(0, 8);
+        return UUID.randomUUID()
+                .toString();
     }
 }

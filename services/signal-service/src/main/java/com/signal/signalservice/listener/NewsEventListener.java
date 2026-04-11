@@ -46,6 +46,7 @@ public class NewsEventListener {
         if (header != null) {
             return new String(header.value(), StandardCharsets.UTF_8);
         }
-        return UUID.randomUUID().toString().substring(0, 8);
+        return UUID.randomUUID()
+                .toString();
     }
 }

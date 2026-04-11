@@ -12,9 +12,11 @@ spring:
 spring:
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    listener:
+      concurrency: 3              # 파티션 수에 맞춰 병렬 처리 (기본값 1에서 상향)
     consumer:
       group-id: signal-service
-      auto-offset-reset: earliest
+      auto-offset-reset: latest   # earliest → 재배포 시 전체 재처리로 Redis 기준값 오염 방지
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
@@ -55,6 +57,7 @@ scanner:
   volume-surge:
     threshold-ratio: 2.0       # 전일 대비 거래량 2배 이상
     min-volume: 10000          # 최소 거래량 필터
+    min-trading-value: 1000000000  # 최소 거래대금 10억원 (소형주 노이즈 차단)
     eod-ttl-hours: 48          # EOD 스냅샷 TTL (주말 커버)
     last-volume-ttl-hours: 2   # 최근 누적 거래량 TTL
     require-price-up: true     # 현재가가 시가 대비 상승 중인 경우만 신호 발생 (하락 중 거래량 급증 제외)
@@ -117,6 +120,8 @@ scorer:
   combo-bonus-premium: 35      # 프리미엄 조합(시간외+갭상승+거래량) 보너스
   min-score: 35                # 단일 신호만으로는 통과 불가 — 강도 보너스 또는 복합 신호 요구
   bullish-news-bonus: 10       # 호재 공시로 분류된 NEWS_SURGE 추가 보너스
+  volume-price-change-tier2-rate: 1.0  # VOLUME_SURGE 시가대비 1% 이상 → tier2 보너스 (+5)
+  volume-price-change-tier3-rate: 3.0  # VOLUME_SURGE 시가대비 3% 이상 → tier3 보너스 (+10)
   intensity:
     VOLUME_SURGE:
       tier2-threshold: 3.0     # 3배 이상

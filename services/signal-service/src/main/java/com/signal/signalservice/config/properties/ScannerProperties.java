@@ -24,6 +24,11 @@ public class ScannerProperties {
         private int eodTtlHours = 48;
         private int lastVolumeTtlHours = 2;
         /**
+         * 최소 거래대금(원). 주가가 낮은 소형주의 노이즈 신호 차단.
+         * RawMarketEvent.tradingValue 기반. 0이면 비활성화.
+         */
+        private long minTradingValue = 1_000_000_000L;
+        /**
          * 거래량 급증 시 현재가가 시가 대비 상승 중인지 확인 여부
          */
         private boolean requirePriceUp = true;
