@@ -12,6 +12,7 @@ import io.github.resilience4j.ratelimiter.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -20,6 +21,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 @Slf4j
 @Component
@@ -31,6 +33,8 @@ public class MarketDataCollector {
     private final CollectorProperties collectorProperties;
     private final RawEventPublisher eventPublisher;
     private final RateLimiter kisRateLimiter;
+    @Qualifier("kisExecutor")
+    private final ExecutorService kisExecutor;
 
     private static final String TRACE_ID_KEY = "traceId";
 
@@ -51,7 +55,8 @@ public class MarketDataCollector {
             log.info("장중 시세 수집 시작 [종목수={}]", stockCodes.size());
 
             List<CompletableFuture<Void>> futures = stockCodes.stream()
-                    .map(code -> CompletableFuture.runAsync(() -> collectSingle(code, traceId)))
+                    .map(code -> CompletableFuture.runAsync(() -> collectSingle(code, traceId),
+                            kisExecutor))
                     .toList();
 
             CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();

@@ -9,7 +9,7 @@ spring:
         config:
           default:
             connect-timeout: 3000   # 3초
-            read-timeout: 5000      # 5초
+            read-timeout: 10000     # 10초
 
 # ================================
 # Kafka Producer

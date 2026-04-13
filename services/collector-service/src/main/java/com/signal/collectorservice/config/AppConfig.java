@@ -15,6 +15,8 @@ import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.time.Duration;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Configuration
 @EnableScheduling
@@ -28,6 +30,11 @@ import java.time.Duration;
         KafkaTopicProperties.class
 })
 public class AppConfig {
+
+    @Bean(name = "kisExecutor", destroyMethod = "shutdown")
+    public ExecutorService kisExecutor() {
+        return Executors.newFixedThreadPool(5);
+    }
 
     @Bean
     public RateLimiter kisRateLimiter(KisProperties kisProperties) {
