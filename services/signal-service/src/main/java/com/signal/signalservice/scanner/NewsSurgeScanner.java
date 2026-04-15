@@ -55,18 +55,26 @@ public class NewsSurgeScanner {
                 .range(zsetKey, 0, -1);
         long count = windowMembers != null ? windowMembers.size() : 0;
 
-        if (count >= config.getThresholdCount()) {
-            // [B4 수정] 트리거 시점 단일 공시가 아닌 윈도우 전체 공시로 감성 판단
-            boolean hasBullish = windowMembers.stream()
-                    .map(m -> m.contains("|") ? m.substring(m.indexOf("|") + 1) : m)
-                    .anyMatch(name -> isBullish(name, config) && !isBearish(name, config));
-
-            String sentiment = hasBullish ? "BULLISH" : "NEUTRAL";
-            String reason = String.format("공시 급증(%s): %d분 내 %d건 (최신: %s)",
-                    sentiment, config.getWindowMinutes(), count, reportName);
+        // 호재 단일 공시 즉시 트리거: 호재 키워드가 포함된 공시는 건수 무관하게 즉시 신호
+        // rawScore = max(count, 5.0) — 단독 공시여도 intensity tier2 보너스를 확보해 min-score 통과 가능하게 함
+        if (isBullish(reportName, config)) {
+            double rawScore = Math.max((double) count, 5.0);
+            String reason = count > 1
+                    ? String.format("호재 공시 감지: %s (%d분 내 %d건)", reportName,
+                    config.getWindowMinutes(), count)
+                    : String.format("호재 공시 감지: %s (단일 공시)", reportName);
             log.info("[NEWS_SURGE] {} - {}", stockCode, reason);
             return ScanResult.triggered(SignalType.NEWS_SURGE, stockCode, reason,
-                    (double) count, Map.of("sentiment", sentiment));
+                    rawScore, Map.of("sentiment", "BULLISH"));
+        }
+
+        // 중립 공시 급증 트리거: 윈도우 내 임계값 이상 누적 시 신호
+        if (count >= config.getThresholdCount()) {
+            String reason = String.format("공시 급증(NEUTRAL): %d분 내 %d건 (최신: %s)",
+                    config.getWindowMinutes(), count, reportName);
+            log.info("[NEWS_SURGE] {} - {}", stockCode, reason);
+            return ScanResult.triggered(SignalType.NEWS_SURGE, stockCode, reason,
+                    (double) count, Map.of("sentiment", "NEUTRAL"));
         }
 
         return ScanResult.notTriggered(SignalType.NEWS_SURGE, stockCode);

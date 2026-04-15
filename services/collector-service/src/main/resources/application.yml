@@ -54,7 +54,7 @@ collector:
     after-hours:
       cron: "0/30 * 15-20 * * MON-FRI"   # 시간외 5분 간격
     news:
-      cron: "0 0/10 * * * MON-FRI"      # 뉴스/공시 10분 간격
+      cron: "0 0/5 * * * MON-FRI"       # 뉴스/공시 5분 간격 (10→5분, 호재 공시 빠른 포착)
 
 # ================================
 # Trading Session (KST 기준)

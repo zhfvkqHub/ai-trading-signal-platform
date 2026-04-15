@@ -70,8 +70,8 @@ scanner:
     price-ttl-hours: 18             # 시간외 데이터 TTL
     min-buy-volume: 100000          # 최소 매수 잔량 (소량 노이즈 필터)
   news-surge:
-    threshold-count: 3         # 뉴스 카운트 임계값
-    window-minutes: 30         # 뉴스 윈도우
+    threshold-count: 2         # 중립 공시 급증 임계값 (3→2, 호재 단일 공시는 별도 즉시 트리거)
+    window-minutes: 60         # 뉴스 윈도우 (30→60분, 수집 주기 5분 기준 충분한 누적 시간 확보)
   breakout:
     period-days: 20            # N일 최고가 기준 (20일)
     min-data-days: 5           # 신호 활성화까지 필요한 최소 누적 일수
