@@ -55,7 +55,7 @@ kafka:
 # ================================
 scanner:
   volume-surge:
-    threshold-ratio: 3.0       # 전일 대비 거래량 3배 이상 (2.0→3.0, 기준 강화)
+    threshold-ratio: 2.5       # 전일 대비 거래량 2.5배 이상 (3.0→2.5, 현실적 기준으로 완화)
     min-volume: 10000          # 최소 거래량 필터
     min-trading-value: 1000000000  # 최소 거래대금 10억원 (소형주 노이즈 차단)
     eod-ttl-hours: 48          # EOD 스냅샷 TTL (주말 커버)
@@ -64,7 +64,7 @@ scanner:
     min-price-change-rate: 0.5 # 시가대비 최소 상승률(%). 0.0→0.5, 보합 제외
   gap-up:
     threshold-percent: 2.0     # 갭상승률 2.0% 이상 (1.5→2.0, 약한 갭 제외)
-    cutoff-minutes: 30         # 장 시작(09:00) 후 30분까지만 갭상승 스캔
+    cutoff-minutes: 45         # 장 시작(09:00) 후 45분까지만 갭상승 스캔 (30→45, 포착 창 확대)
   after-hours-surge:
     buy-sell-ratio-threshold: 2.0   # 매수/매도 비율 2.0 이상 (1.5→2.0, 기준 강화)
     price-ttl-hours: 18             # 시간외 데이터 TTL
@@ -115,7 +115,7 @@ scanner:
 scorer:
   weights:
     VOLUME_SURGE: 25           # 30→25 (방향성 모호, 하락에서도 발생) — 이제 방향 필터로 보완
-    NEWS_SURGE: 20             # 25→20 (호/악재 구분 없음) — 이제 감성 분류로 보완
+    NEWS_SURGE: 25             # 20→25 복원 (감성 분류가 이미 적용됨 — 가중치 감산이 이중 패널티였음)
     AFTER_HOURS_SURGE: 30      # 25→30 (방향성 예측력 가장 높음)
     GAP_UP: 25                 # 20→25 (강한 방향성 신호)
     BREAKOUT: 35               # N일 최고가 돌파 — 가장 강한 추세 확인 신호
@@ -123,7 +123,7 @@ scorer:
   combo-bonus-3: 20            # 3개 신호 동시 (표준)
   combo-bonus-4: 30            # 4개 신호 동시 (표준)
   combo-bonus-premium: 35      # 프리미엄 조합(시간외+갭상승+거래량) 보너스
-  min-score: 45                # 단일 신호만으로는 통과 불가 — 강도 보너스 또는 복합 신호 요구 (35→45)
+  min-score: 40                # 45→40 (45는 GAP_UP/AFTER_HOURS/NEWS가 단독으로 절대 통과 불가한 수치였음)
   bullish-news-bonus: 10       # 호재 공시로 분류된 NEWS_SURGE 추가 보너스
   volume-price-change-tier2-rate: 1.0  # VOLUME_SURGE 시가대비 1% 이상 → tier2 보너스 (+5)
   volume-price-change-tier3-rate: 3.0  # VOLUME_SURGE 시가대비 3% 이상 → tier3 보너스 (+10)
