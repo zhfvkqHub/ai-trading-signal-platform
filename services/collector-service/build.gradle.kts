@@ -40,6 +40,7 @@ dependencies {
 
     // Feign Client
     implementation("org.springframework.cloud:spring-cloud-starter-openfeign")
+    implementation("io.github.openfeign:feign-okhttp")
 
     // Resilience4j — Rate Limiter / Circuit Breaker
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")

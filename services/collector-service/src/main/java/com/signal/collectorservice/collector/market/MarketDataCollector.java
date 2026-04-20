@@ -8,11 +8,13 @@ import com.signal.collectorservice.model.DataSource;
 import com.signal.collectorservice.model.TradingSession;
 import com.signal.collectorservice.model.raw.RawMarketEvent;
 import com.signal.collectorservice.schedule.TradingSessionManager;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -33,6 +35,8 @@ public class MarketDataCollector {
     private final CollectorProperties collectorProperties;
     private final RawEventPublisher eventPublisher;
     private final RateLimiter kisRateLimiter;
+    private final RetryTemplate kisRetryTemplate;
+    private final CircuitBreaker kisCircuitBreaker;
     @Qualifier("kisExecutor")
     private final ExecutorService kisExecutor;
 
@@ -47,12 +51,18 @@ public class MarketDataCollector {
             return;
         }
 
+        CircuitBreaker.State cbState = kisCircuitBreaker.getState();
+        if (cbState == CircuitBreaker.State.OPEN) {
+            log.warn("KIS Circuit Breaker OPEN — 이번 주기 수집 건너뜀 (KIS IP 차단 방지)");
+            return;
+        }
+
         String traceId = UUID.randomUUID().toString().substring(0, 8);
         MDC.put(TRACE_ID_KEY, traceId);
 
         try {
             List<String> stockCodes = collectorProperties.getStockCodes();
-            log.info("장중 시세 수집 시작 [종목수={}]", stockCodes.size());
+            log.info("장중 시세 수집 시작 [종목수={}, cbState={}]", stockCodes.size(), cbState);
 
             List<CompletableFuture<Void>> futures = stockCodes.stream()
                     .map(code -> CompletableFuture.runAsync(() -> collectSingle(code, traceId),
@@ -68,35 +78,52 @@ public class MarketDataCollector {
 
     private void collectSingle(String stockCode, String traceId) {
         MDC.put(TRACE_ID_KEY, traceId);
+        if (!kisCircuitBreaker.tryAcquirePermission()) {
+            log.debug("KIS Circuit Breaker OPEN — 요청 차단됨 [stockCode={}]", stockCode);
+            MDC.remove(TRACE_ID_KEY);
+            return;
+        }
+        long startNano = System.nanoTime();
         try {
-            kisRateLimiter.acquirePermission();
-            KisMarketResponse response = marketClient.fetchCurrentPrice(
-                    "FHKST01010100", "J", stockCode);
+            kisRetryTemplate.execute(ctx -> {
+                if (ctx.getRetryCount() > 0) {
+                    log.warn("KIS 시세 재시도 [stockCode={}, attempt={}]", stockCode,
+                            ctx.getRetryCount() + 1);
+                }
+                kisRateLimiter.acquirePermission();
+                KisMarketResponse response = marketClient.fetchCurrentPrice(
+                        "FHKST01010100", "J", stockCode);
 
-            if (!"0".equals(response.returnCode())) {
-                log.warn("KIS 시세 조회 실패 [stockCode={}, msg={}]", stockCode, response.message());
-                return;
-            }
+                if (!"0".equals(response.returnCode())) {
+                    log.warn("KIS 시세 조회 실패 [stockCode={}, msg={}]", stockCode, response.message());
+                    return null;
+                }
 
-            KisMarketResponse.Output output = response.output();
-            String stockName = collectorProperties.getStockName(stockCode);
-            RawMarketEvent event = new RawMarketEvent(
-                    stockCode,
-                    stockName,
-                    new BigDecimal(output.currentPrice()),
-                    new BigDecimal(output.openPrice()),
-                    new BigDecimal(output.highPrice()),
-                    new BigDecimal(output.lowPrice()),
-                    new BigDecimal(output.prevClosePrice()),
-                    new BigDecimal(output.accumulatedVolume()),
-                    new BigDecimal(output.tradingValue()),
-                    Instant.now(),
-                    DataSource.KIS,
-                    traceId
-            );
+                KisMarketResponse.Output output = response.output();
+                String stockName = collectorProperties.getStockName(stockCode);
+                RawMarketEvent event = new RawMarketEvent(
+                        stockCode,
+                        stockName,
+                        new BigDecimal(output.currentPrice()),
+                        new BigDecimal(output.openPrice()),
+                        new BigDecimal(output.highPrice()),
+                        new BigDecimal(output.lowPrice()),
+                        new BigDecimal(output.prevClosePrice()),
+                        new BigDecimal(output.accumulatedVolume()),
+                        new BigDecimal(output.tradingValue()),
+                        Instant.now(),
+                        DataSource.KIS,
+                        traceId
+                );
 
-            eventPublisher.publishMarketEvent(stockCode, event);
+                eventPublisher.publishMarketEvent(stockCode, event);
+                return null;
+            });
+            kisCircuitBreaker.onSuccess(System.nanoTime() - startNano,
+                    java.util.concurrent.TimeUnit.NANOSECONDS);
         } catch (Exception e) {
+            kisCircuitBreaker.onError(System.nanoTime() - startNano,
+                    java.util.concurrent.TimeUnit.NANOSECONDS, e);
             log.error("장중 시세 수집 실패 [stockCode={}]", stockCode, e);
         } finally {
             MDC.remove(TRACE_ID_KEY);
