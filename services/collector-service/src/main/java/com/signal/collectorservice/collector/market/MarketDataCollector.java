@@ -51,17 +51,12 @@ public class MarketDataCollector {
             return;
         }
 
-        CircuitBreaker.State cbState = kisCircuitBreaker.getState();
-        if (cbState == CircuitBreaker.State.OPEN) {
-            log.warn("KIS Circuit Breaker OPEN — 이번 주기 수집 건너뜀 (KIS IP 차단 방지)");
-            return;
-        }
-
         String traceId = UUID.randomUUID().toString().substring(0, 8);
         MDC.put(TRACE_ID_KEY, traceId);
 
         try {
             List<String> stockCodes = collectorProperties.getStockCodes();
+            CircuitBreaker.State cbState = kisCircuitBreaker.getState();
             log.info("장중 시세 수집 시작 [종목수={}, cbState={}]", stockCodes.size(), cbState);
 
             List<CompletableFuture<Void>> futures = stockCodes.stream()
