@@ -8,9 +8,12 @@ import com.signal.collectorservice.model.DataSource;
 import com.signal.collectorservice.model.TradingSession;
 import com.signal.collectorservice.model.raw.RawAfterHoursEvent;
 import com.signal.collectorservice.schedule.TradingSessionManager;
+import io.github.resilience4j.circuitbreaker.CircuitBreaker;
+import io.github.resilience4j.ratelimiter.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -19,6 +22,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 
 @Slf4j
 @Component
@@ -29,6 +33,11 @@ public class AfterHoursCollector {
     private final TradingSessionManager sessionManager;
     private final CollectorProperties collectorProperties;
     private final RawEventPublisher eventPublisher;
+    private final RateLimiter kisRateLimiter;
+    private final CircuitBreaker kisCircuitBreaker;
+    @Qualifier("kisExecutor")
+    private final ExecutorService kisExecutor;
+
     private static final String TRACE_ID_KEY = "traceId";
 
     /**
@@ -45,10 +54,10 @@ public class AfterHoursCollector {
 
         try {
             List<String> stockCodes = collectorProperties.getStockCodes();
-            log.info("시간외 시세 수집 시작 [종목수={}]", stockCodes.size());
+            log.info("시간외 시세 수집 시작 [종목수={}, cbState={}]", stockCodes.size(), kisCircuitBreaker.getState());
 
             List<CompletableFuture<Void>> futures = stockCodes.stream()
-                    .map(code -> CompletableFuture.runAsync(() -> collectSingle(code, traceId)))
+                    .map(code -> CompletableFuture.runAsync(() -> collectSingle(code, traceId), kisExecutor))
                     .toList();
 
             CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
@@ -60,18 +69,27 @@ public class AfterHoursCollector {
 
     private void collectSingle(String stockCode, String traceId) {
         MDC.put(TRACE_ID_KEY, traceId);
+        if (!kisCircuitBreaker.tryAcquirePermission()) {
+            log.debug("KIS Circuit Breaker OPEN — 요청 차단됨 [stockCode={}]", stockCode);
+            MDC.remove(TRACE_ID_KEY);
+            return;
+        }
+        long startNano = System.nanoTime();
         try {
+            kisRateLimiter.acquirePermission();
             KisAfterHoursResponse response = afterHoursClient.fetchAfterHoursPrice(
                     "FHPST02300000", "J", stockCode);
 
             if (!"0".equals(response.returnCode())) {
                 log.warn("KIS 시간외 조회 실패 [stockCode={}, msg={}]", stockCode, response.message());
+                kisCircuitBreaker.onSuccess(System.nanoTime() - startNano, java.util.concurrent.TimeUnit.NANOSECONDS);
                 return;
             }
 
             KisAfterHoursResponse.Output output = response.output();
             if (output == null) {
                 log.debug("KIS 시간외 데이터 없음 [stockCode={}]", stockCode);
+                kisCircuitBreaker.onSuccess(System.nanoTime() - startNano, java.util.concurrent.TimeUnit.NANOSECONDS);
                 return;
             }
             String stockName = collectorProperties.getStockName(stockCode);
@@ -80,8 +98,8 @@ public class AfterHoursCollector {
                     stockName,
                     new BigDecimal(output.afterHoursPrice()),
                     new BigDecimal(output.afterHoursVolume()),
-                    BigDecimal.ZERO,  // 매수 대기 물량 (해당 필드 없음)
-                    BigDecimal.ZERO,  // 매도 대기 물량 (해당 필드 없음)
+                    BigDecimal.ZERO,
+                    BigDecimal.ZERO,
                     new BigDecimal(output.prevClosePrice()),
                     Instant.now(),
                     DataSource.KIS,
@@ -89,7 +107,9 @@ public class AfterHoursCollector {
             );
 
             eventPublisher.publishAfterHoursEvent(stockCode, event);
+            kisCircuitBreaker.onSuccess(System.nanoTime() - startNano, java.util.concurrent.TimeUnit.NANOSECONDS);
         } catch (Exception e) {
+            kisCircuitBreaker.onError(System.nanoTime() - startNano, java.util.concurrent.TimeUnit.NANOSECONDS, e);
             log.error("시간외 시세 수집 실패 [stockCode={}]", stockCode, e);
         } finally {
             MDC.remove(TRACE_ID_KEY);
