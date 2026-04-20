@@ -65,7 +65,7 @@ public class AppConfig {
 
     /**
      * KIS API 연속 타임아웃 시 Circuit Breaker로 요청을 차단하여 IP 차단 악순환을 방지한다. - 최근 10건 중 60% 이상 실패 → OPEN
-     * (30초간 요청 차단) - HALF-OPEN에서 3건 시도 후 성공률 확인 → 성공 시 CLOSED 복귀
+     * (20초간 요청 차단) - HALF-OPEN에서 3건 시도 후 성공률 확인 → 성공 시 CLOSED 복귀
      */
     @Bean
     public CircuitBreaker kisCircuitBreaker() {
@@ -73,7 +73,7 @@ public class AppConfig {
                 .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
                 .slidingWindowSize(10)
                 .failureRateThreshold(60)
-                .waitDurationInOpenState(Duration.ofSeconds(30))
+                .waitDurationInOpenState(Duration.ofSeconds(20))
                 .permittedNumberOfCallsInHalfOpenState(3)
                 .recordExceptions(SocketTimeoutException.class,
                         java.net.ConnectException.class,
@@ -94,5 +94,10 @@ public class AppConfig {
                 .writeTimeout(5, TimeUnit.SECONDS)
                 .connectionPool(new okhttp3.ConnectionPool(10, 5, TimeUnit.MINUTES))
                 .build();
+    }
+
+    @Bean
+    public feign.Client feignOkHttpClient(OkHttpClient okHttpClient) {
+        return new feign.okhttp.OkHttpClient(okHttpClient);
     }
 }
