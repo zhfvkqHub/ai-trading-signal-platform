@@ -1,7 +1,6 @@
 package com.signal.collectorservice.collector.afterhours;
 
 import com.signal.collectorservice.client.kis.afterhours.KisAfterHoursFeignClient;
-import com.signal.collectorservice.client.kis.afterhours.KisAfterHoursOrderBookResponse;
 import com.signal.collectorservice.client.kis.afterhours.KisAfterHoursResponse;
 import com.signal.collectorservice.config.properties.CollectorProperties;
 import com.signal.collectorservice.kafka.RawEventPublisher;
@@ -94,26 +93,9 @@ public class AfterHoursCollector {
                 return;
             }
 
-            // 시간외 호가 잔량 조회 (매수/매도 물량)
+            // KIS OpenAPI에 시간외 호가 잔량 조회 REST API가 존재하지 않아 0으로 고정
             BigDecimal buyOrderVolume = BigDecimal.ZERO;
             BigDecimal sellOrderVolume = BigDecimal.ZERO;
-            try {
-                kisRateLimiter.acquirePermission();
-                KisAfterHoursOrderBookResponse orderBookResponse =
-                        afterHoursClient.fetchAfterHoursOrderBook("FHPST02310000", "J", stockCode);
-                if ("0".equals(orderBookResponse.returnCode()) && orderBookResponse.output1() != null) {
-                    String bidStr = orderBookResponse.output1().totalBidVolume();
-                    String askStr = orderBookResponse.output1().totalAskVolume();
-                    if (bidStr != null && !bidStr.isBlank()) {
-                        buyOrderVolume = new BigDecimal(bidStr);
-                    }
-                    if (askStr != null && !askStr.isBlank()) {
-                        sellOrderVolume = new BigDecimal(askStr);
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("시간외 호가 잔량 조회 실패 - 시세만 발행 [stockCode={}]", stockCode, e);
-            }
 
             String stockName = collectorProperties.getStockName(stockCode);
             RawAfterHoursEvent event = new RawAfterHoursEvent(

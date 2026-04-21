@@ -20,13 +20,4 @@ public interface KisAfterHoursFeignClient {
             @RequestParam("FID_INPUT_ISCD") String stockCode
     );
 
-    /**
-     * 시간외호가 잔량 조회 — 매수/매도 총 잔량을 반환한다.
-     */
-    @GetMapping("/uapi/domestic-stock/v1/quotations/inquire-overtime-asking-price-exp-ccn")
-    KisAfterHoursOrderBookResponse fetchAfterHoursOrderBook(
-            @RequestHeader("tr_id") String trId,
-            @RequestParam("FID_COND_MRKT_DIV_CODE") String marketDivCode,
-            @RequestParam("FID_INPUT_ISCD") String stockCode
-    );
 }

@@ -2,6 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## KIS OpenAPI 사용 규칙
+
+**KIS 공식 문서에 존재하는 API만 사용해야 한다.**
+
+- 모든 KIS API 엔드포인트와 `tr_id`는 반드시 [KIS Developers 공식 포털](https://apiportal.koreainvestment.com) 또는 [공식 GitHub](https://github.com/koreainvestment/open-trading-api)에서 확인된 것만 사용한다.
+- 패턴 유추로 API를 추측하거나 만들어내지 않는다 (예: 존재하는 `FHPST02300000`을 보고 `FHPST02310000`을 추론하는 행위 금지).
+- API 스펙이 불확실한 경우 반드시 사용자에게 공식 문서 확인을 요청한다.
+
+**현재 확인된 실제 KIS 시간외 관련 API:**
+
+| tr_id | 설명 |
+|---|---|
+| `FHPST02300000` | 국내주식 시간외단일가 현재가 (`/uapi/domestic-stock/v1/quotations/inquire-overtime-price`) |
+| `FHPST02320000` | 국내주식 시간외 일자별 주가 |
+| `FHPST01760000` | 장전/장후 시간외 잔량 순위 (`/uapi/domestic-stock/v1/ranking/after-hour-balance`) |
+
+> 시간외 호가 잔량을 종목별로 조회하는 REST API는 KIS 공식 문서에 존재하지 않는다.
+
 ## Build & Test Commands
 
 ```bash
