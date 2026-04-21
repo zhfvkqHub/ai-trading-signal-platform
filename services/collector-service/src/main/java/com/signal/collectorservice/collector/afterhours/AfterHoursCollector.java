@@ -1,6 +1,7 @@
 package com.signal.collectorservice.collector.afterhours;
 
 import com.signal.collectorservice.client.kis.afterhours.KisAfterHoursFeignClient;
+import com.signal.collectorservice.client.kis.afterhours.KisAfterHoursOrderBookResponse;
 import com.signal.collectorservice.client.kis.afterhours.KisAfterHoursResponse;
 import com.signal.collectorservice.config.properties.CollectorProperties;
 import com.signal.collectorservice.kafka.RawEventPublisher;
@@ -92,14 +93,36 @@ public class AfterHoursCollector {
                 kisCircuitBreaker.onSuccess(System.nanoTime() - startNano, java.util.concurrent.TimeUnit.NANOSECONDS);
                 return;
             }
+
+            // 시간외 호가 잔량 조회 (매수/매도 물량)
+            BigDecimal buyOrderVolume = BigDecimal.ZERO;
+            BigDecimal sellOrderVolume = BigDecimal.ZERO;
+            try {
+                kisRateLimiter.acquirePermission();
+                KisAfterHoursOrderBookResponse orderBookResponse =
+                        afterHoursClient.fetchAfterHoursOrderBook("FHPST02310000", "J", stockCode);
+                if ("0".equals(orderBookResponse.returnCode()) && orderBookResponse.output1() != null) {
+                    String bidStr = orderBookResponse.output1().totalBidVolume();
+                    String askStr = orderBookResponse.output1().totalAskVolume();
+                    if (bidStr != null && !bidStr.isBlank()) {
+                        buyOrderVolume = new BigDecimal(bidStr);
+                    }
+                    if (askStr != null && !askStr.isBlank()) {
+                        sellOrderVolume = new BigDecimal(askStr);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("시간외 호가 잔량 조회 실패 - 시세만 발행 [stockCode={}]", stockCode, e);
+            }
+
             String stockName = collectorProperties.getStockName(stockCode);
             RawAfterHoursEvent event = new RawAfterHoursEvent(
                     stockCode,
                     stockName,
                     new BigDecimal(output.afterHoursPrice()),
                     new BigDecimal(output.afterHoursVolume()),
-                    BigDecimal.ZERO,
-                    BigDecimal.ZERO,
+                    buyOrderVolume,
+                    sellOrderVolume,
                     new BigDecimal(output.prevClosePrice()),
                     Instant.now(),
                     DataSource.KIS,

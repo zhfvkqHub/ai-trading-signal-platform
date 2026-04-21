@@ -62,20 +62,26 @@ public class VolumeSurgeScanner {
             // SET NX로 다른 인스턴스/재처리가 덮어쓰는 것을 방지
             String prevVolumeStr = redisTemplate.opsForValue()
                     .get(lastKey);
-            String baselineVolume =
-                    (prevVolumeStr != null) ? prevVolumeStr : currentVolume.toPlainString();
-            Boolean set = redisTemplate.opsForValue()
-                    .setIfAbsent(eodKey, baselineVolume,
-                    Duration.ofHours(config.getEodTtlHours()));
-            if (Boolean.TRUE.equals(set)) {
-                log.info("[VOLUME_SURGE] EOD 부트스트랩 [stockCode={}, baselineVolume={}]",
-                        stockCode, baselineVolume);
+            if (prevVolumeStr != null) {
+                // 이전 세션 종료 시 누적량이 있으면 그것을 기준으로 사용하고 즉시 비교 진행
+                redisTemplate.opsForValue()
+                        .setIfAbsent(eodKey, prevVolumeStr,
+                                Duration.ofHours(config.getEodTtlHours()));
+                log.info("[VOLUME_SURGE] EOD 부트스트랩 (이전 세션 기준) [stockCode={}, baselineVolume={}]",
+                        stockCode, prevVolumeStr);
+                eodVolumeStr = prevVolumeStr;
+            } else {
+                // 이전 세션 데이터도 없으면 현재값을 기준으로 설정, 다음 틱부터 비교
+                redisTemplate.opsForValue()
+                        .setIfAbsent(eodKey, currentVolume.toPlainString(),
+                                Duration.ofHours(config.getEodTtlHours()));
+                log.info("[VOLUME_SURGE] EOD 부트스트랩 (초기값) [stockCode={}, baselineVolume={}]",
+                        stockCode, currentVolume.toPlainString());
+                redisTemplate.opsForValue()
+                        .set(lastKey, currentVolume.toPlainString(),
+                                Duration.ofHours(config.getLastVolumeTtlHours()));
+                return ScanResult.notTriggered(SignalType.VOLUME_SURGE, stockCode);
             }
-            // 현재 누적 거래량 갱신 (다음 세션 부트스트랩 기준값)
-            redisTemplate.opsForValue()
-                    .set(lastKey, currentVolume.toPlainString(),
-                            Duration.ofHours(config.getLastVolumeTtlHours()));
-            return ScanResult.notTriggered(SignalType.VOLUME_SURGE, stockCode);
         }
 
         // 현재 누적 거래량 갱신 (다음 세션 부트스트랩 기준값)
