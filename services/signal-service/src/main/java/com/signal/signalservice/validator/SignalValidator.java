@@ -22,6 +22,9 @@ public class SignalValidator {
     /**
      * 3단계 검증: dedup → cooldown → burst
      *
+     * <p>[수정] cooldown을 종목+시그널타입 조합으로 분리.
+     * 같은 종목이라도 다른 시그널 타입은 독립적으로 통과 가능.
+     *
      * @return 거부 사유 (null이면 통과)
      */
     public String validate(String stockCode, List<SignalType> signalTypes) {
@@ -36,13 +39,15 @@ public class SignalValidator {
             }
         }
 
-        // 2. Cooldown: 종목별 쿨다운
-        String cooldownKey = String.format(RedisKeyConstants.COOLDOWN, stockCode);
-        if (Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey))) {
-            String reason = String.format("쿨다운 중: %s (%d분 이내 발신 이력)",
-                    stockCode, validatorProperties.getCooldownMinutes());
-            log.debug("[COOLDOWN] {}", reason);
-            return reason;
+        // 2. Cooldown: 종목+시그널타입별 쿨다운 (다른 타입은 독립 통과)
+        for (SignalType type : signalTypes) {
+            String cooldownKey = String.format(RedisKeyConstants.COOLDOWN, stockCode, type.name());
+            if (Boolean.TRUE.equals(redisTemplate.hasKey(cooldownKey))) {
+                String reason = String.format("쿨다운 중: %s:%s (%d분 이내 발신 이력)",
+                        stockCode, type.name(), validatorProperties.getCooldownMinutes());
+                log.debug("[COOLDOWN] {}", reason);
+                return reason;
+            }
         }
 
         // 3. Burst: 윈도우 내 최대 신호 수 제한
@@ -71,15 +76,18 @@ public class SignalValidator {
      * @return true: 기록 성공(신호 발행 가능) / false: 레이스로 인한 쿨다운 선점 실패
      */
     public boolean recordSignalEmission(String stockCode, List<SignalType> signalTypes) {
-        // 쿨다운 키 원자적 획득 (SET NX EX) — validate() 이후 동시 진입 차단
-        String cooldownKey = String.format(RedisKeyConstants.COOLDOWN, stockCode);
-        Boolean cooldownAcquired = redisTemplate.opsForValue()
-                .setIfAbsent(
-                        cooldownKey, "1",
-                        Duration.ofMinutes(validatorProperties.getCooldownMinutes()));
-        if (!Boolean.TRUE.equals(cooldownAcquired)) {
-            log.debug("[COOLDOWN] 쿨다운 레이스 감지 - 신호 발행 중단 [stockCode={}]", stockCode);
-            return false;
+        // 쿨다운 키 원자적 획득 (SET NX EX) — 종목+타입별로 분리
+        for (SignalType type : signalTypes) {
+            String cooldownKey = String.format(RedisKeyConstants.COOLDOWN, stockCode, type.name());
+            Boolean cooldownAcquired = redisTemplate.opsForValue()
+                    .setIfAbsent(
+                            cooldownKey, "1",
+                            Duration.ofMinutes(validatorProperties.getCooldownMinutes()));
+            if (!Boolean.TRUE.equals(cooldownAcquired)) {
+                log.debug("[COOLDOWN] 쿨다운 레이스 감지 - 신호 발행 중단 [stockCode={}, type={}]",
+                        stockCode, type.name());
+                return false;
+            }
         }
 
         // Dedup 키 등록 (신호 타입별 TTL)

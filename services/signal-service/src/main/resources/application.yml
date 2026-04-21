@@ -64,7 +64,7 @@ scanner:
     min-price-change-rate: 0.5 # 시가대비 최소 상승률(%). 0.0→0.5, 보합 제외
   gap-up:
     threshold-percent: 2.0     # 갭상승률 2.0% 이상 (1.5→2.0, 약한 갭 제외)
-    cutoff-minutes: 45         # 장 시작(09:00) 후 45분까지만 갭상승 스캔 (30→45, 포착 창 확대)
+    cutoff-minutes: 90         # 장 시작(09:00) 후 90분까지 갭상승 스캔 (45→90, 장중 초반 호재 대응)
   after-hours-surge:
     buy-sell-ratio-threshold: 2.0   # 매수/매도 비율 2.0 이상 (1.5→2.0, 기준 강화)
     price-ttl-hours: 18             # 시간외 데이터 TTL
@@ -74,7 +74,7 @@ scanner:
     window-minutes: 60         # 뉴스 윈도우 (30→60분, 수집 주기 5분 기준 충분한 누적 시간 확보)
   breakout:
     period-days: 20            # N일 최고가 기준 (20일)
-    min-data-days: 5           # 신호 활성화까지 필요한 최소 누적 일수
+    min-data-days: 3           # 신호 활성화까지 필요한 최소 누적 일수 (5→3, 신규 종목 빠른 감지)
     min-breakout-percent: 1.5  # 최소 돌파율(%) 0.5→1.5, 의미 있는 돌파만
     bullish-keywords: # 호재 키워드 — 포함 시 BULLISH 분류
       - 실적
@@ -123,7 +123,7 @@ scorer:
   combo-bonus-3: 20            # 3개 신호 동시 (표준)
   combo-bonus-4: 30            # 4개 신호 동시 (표준)
   combo-bonus-premium: 35      # 프리미엄 조합(시간외+갭상승+거래량) 보너스
-  min-score: 40                # 45→40 (45는 GAP_UP/AFTER_HOURS/NEWS가 단독으로 절대 통과 불가한 수치였음)
+  min-score: 35                # 40→35 (단일 강한 신호 + intensity bonus로 통과 가능하도록)
   bullish-news-bonus: 10       # 호재 공시로 분류된 NEWS_SURGE 추가 보너스
   volume-price-change-tier2-rate: 1.0  # VOLUME_SURGE 시가대비 1% 이상 → tier2 보너스 (+5)
   volume-price-change-tier3-rate: 3.0  # VOLUME_SURGE 시가대비 3% 이상 → tier3 보너스 (+10)

@@ -17,7 +17,7 @@ public final class RedisKeyConstants {
 
     // Validator keys
     public static final String DEDUP = "signal:dedup:%s:%s";       // {signalType}:{stockCode}
-    public static final String COOLDOWN = "signal:cooldown:%s";    // {stockCode}
+    public static final String COOLDOWN = "signal:cooldown:%s:%s";  // {stockCode}:{signalType}
     public static final String BURST = "signal:burst:%s";          // {stockCode}
 
     // Feedback keys
