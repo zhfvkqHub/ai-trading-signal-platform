@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew :services:collector-service:compileJava:*)",
+      "Bash(./gradlew :services:collector-service:test:*)",
+      "Bash(./gradlew:*)",
+      "WebSearch",
+      "WebFetch(domain:markets.hankyung.com)",
+      "WebFetch(domain:finance.daum.net)",
+      "WebFetch(domain:www.news-wa.com)",
+      "WebFetch(domain:namu.wiki)",
+      "Bash(docker ps:*)",
+      "Bash(docker compose:*)",
+      "Bash(ls:*)",
+      "Bash(git -C /Users/kimdayeon/IdeaProjects/dy/ai-trading-signal-platform log --oneline -10)",
+      "WebFetch(domain:apiportal.koreainvestment.com)",
+      "WebFetch(domain:wikidocs.net)",
+      "WebFetch(domain:github.com)",
+      "Bash(gh api:*)",
+      "Bash(gh search code:*)",
+      "WebFetch(domain:gist.github.com)",
+      "WebFetch(domain:zerohertzlib.readthedocs.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh auth:*)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(xargs find:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
