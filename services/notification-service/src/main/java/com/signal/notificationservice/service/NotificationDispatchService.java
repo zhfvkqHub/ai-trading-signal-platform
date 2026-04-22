@@ -2,12 +2,15 @@ package com.signal.notificationservice.service;
 
 import com.signal.notificationservice.config.properties.NotificationProperties;
 import com.signal.notificationservice.dedup.NotificationDedupService;
+import com.signal.notificationservice.model.NotificationDispatchedEvent;
 import com.signal.notificationservice.model.SignalDetectedEvent;
+import com.signal.notificationservice.publisher.NotificationPublisher;
 import com.signal.notificationservice.sender.NotificationSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -20,6 +23,7 @@ public class NotificationDispatchService {
     private final List<NotificationSender> senders;
     private final NotificationDedupService dedupService;
     private final NotificationProperties notificationProperties;
+    private final NotificationPublisher notificationPublisher;
 
     public void dispatch(SignalDetectedEvent event) {
         // 점수 게이트
@@ -51,6 +55,7 @@ public class NotificationDispatchService {
             if (suppressReason != null) {
                 log.info("알림 억제 [channel={}, stockCode={}, reason={}]", channel, event.stockCode(),
                         suppressReason);
+                notificationPublisher.publishDispatched(buildEvent(event, channel, "SUPPRESSED", suppressReason));
                 continue;
             }
 
@@ -61,10 +66,26 @@ public class NotificationDispatchService {
                 dedupService.recordDispatch(channel, event.stockCode(), event.signalTypes());
                 log.info("알림 발송 완료 [channel={}, stockCode={}, score={}]",
                         channel, event.stockCode(), event.score());
+                notificationPublisher.publishDispatched(buildEvent(event, channel, "SENT", null));
             } catch (Exception e) {
                 // 한 채널 실패가 다른 채널 발송을 막지 않도록 per-channel 예외 처리
                 log.error("알림 발송 실패 [channel={}, stockCode={}]", channel, event.stockCode(), e);
             }
         }
+    }
+
+    private NotificationDispatchedEvent buildEvent(SignalDetectedEvent event, String channel,
+                                                    String status, String suppressReason) {
+        return new NotificationDispatchedEvent(
+                event.stockCode(),
+                event.stockName(),
+                event.signalTypes(),
+                event.score(),
+                channel,
+                status,
+                suppressReason,
+                Instant.now(),
+                event.traceId()
+        );
     }
 }

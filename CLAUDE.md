@@ -33,6 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ./gradlew :services:collector-service:build
 ./gradlew :services:signal-service:build
 ./gradlew :services:notification-service:build
+./gradlew :services:history-service:build
 
 # Run a single test class
 ./gradlew :services:signal-service:test --tests "com.example.signal.SomeTest"
@@ -49,7 +50,7 @@ docker compose -f docker-compose-prod.yml up -d
 
 ## Architecture Overview
 
-This is an **event-driven microservices platform** for Korean stock market signal detection. Three services are implemented; two more (history-service, trade-planning-service) are planned.
+This is an **event-driven microservices platform** for Korean stock market signal detection. Four services are implemented; one more (trade-planning-service) is planned.
 
 ### Data Flow
 
@@ -65,6 +66,11 @@ signal-service (:8082)      — Scanner → Scorer → Validator pipeline
 Kafka signal.* topics (signal.detected, signal.rejected)
     ↓
 notification-service (:8083) — sends Telegram/Slack alerts
+    ↓                          publishes notification.dispatched (SENT | SUPPRESSED)
+Kafka notification.dispatched
+    ↓
+history-service (:8084)     — persists signal_events + notification_logs to MySQL
+                               serves web dashboard at /signals and /notifications
 ```
 
 ### Services
@@ -73,7 +79,8 @@ notification-service (:8083) — sends Telegram/Slack alerts
 |---|---|---|
 | **collector-service** | 8081 | Polls KIS (price/volume/after-hours) and DART (disclosures) APIs on 30s intervals; publishes raw events to Kafka |
 | **signal-service** | 8082 | Core analysis engine with three stages: Scanner (detects conditions), Scorer (weighted scoring), Validator (Redis-backed dedup/cooldown/burst checks) |
-| **notification-service** | 8083 | Dispatches Telegram/Slack alerts; Redis-backed rate limiting (10/hr) and dedup (60min cooldown) |
+| **notification-service** | 8083 | Dispatches Telegram/Slack alerts; Redis-backed rate limiting (10/hr) and dedup (60min cooldown); publishes `notification.dispatched` event after each dispatch attempt |
+| **history-service** | 8084 | Consumes `signal.detected`, `signal.rejected`, `notification.dispatched`; persists to MySQL; serves Thymeleaf dashboard + REST API |
 
 ### Signal Detection (signal-service)
 
@@ -95,16 +102,32 @@ Combo bonuses apply (+10 for 2 signals, +20 for 3, +30 for 4). Minimum score to 
 - **HTTP Clients**: OpenFeign with Resilience4j circuit breaker and Spring Retry AOP (KIS: 19 req/s, DART: 1 req/s limits)
 - **Reactive**: notification-service uses Spring WebFlux
 
+### Key Kafka Topics
+
+| Topic | Producer | Consumer |
+|---|---|---|
+| `raw.market` / `raw.news` / `raw.after-hours` | collector-service | signal-service |
+| `signal.detected` / `signal.rejected` | signal-service | notification-service, history-service |
+| `notification.dispatched` | notification-service | history-service |
+
 ### Configuration Highlights
 
 Signal thresholds, scorer weights, bullish/bearish keywords, and validator TTLs are all externalized in `application.yml` for each service — no magic numbers in code. Key files:
 - `services/signal-service/src/main/resources/application.yml` — all scoring/detection thresholds
 - `services/notification-service/src/main/resources/application.yml` — channel toggles, rate limits
-- `.env` / `.env.example` — API credentials (KIS, DART), Telegram/Slack tokens, stock watchlist
+- `services/history-service/src/main/resources/application.yml` — DB connection, Kafka topics
+- `.env` — API credentials (KIS, DART), Telegram/Slack tokens, DB credentials, stock watchlist
+
+### history-service Dashboard
+
+Web UI served by history-service (Thymeleaf + Bootstrap):
+- `http://localhost:8084/signals` — signal list with status filter (DETECTED/REJECTED), stock code search, pagination
+- `http://localhost:8084/notifications` — notification log with channel/status filter, suppression reason display
+- Both pages auto-refresh every 30 seconds
+- REST API: `GET /api/signals`, `GET /api/notifications` (pageable, filterable)
 
 ### Planned Services (not yet implemented)
 
-- **history-service**: MySQL persistence for signals, alerts, validation results
 - **trade-planning-service**: Shadow trading simulation (no real orders)
 
-MySQL is wired in docker-compose but commented out pending history-service implementation.
+MySQL is active in docker-compose (history-service dependency). Set DB credentials in `.env` before running `docker compose up -d`.

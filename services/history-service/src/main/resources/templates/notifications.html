@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="refresh" content="30">
+    <title>알림 내역 — Trading Dashboard</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" th:href="@{/css/dashboard.css}">
+</head>
+<body>
+
+<nav class="navbar navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+        <span class="navbar-brand fw-bold">📈 Trading Dashboard</span>
+        <span class="text-secondary small">30초마다 자동 갱신</span>
+    </div>
+</nav>
+
+<div class="container-fluid">
+
+    <!-- 탭 -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link" href="/signals">시그널 목록</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link active" href="/notifications">알림 내역</a>
+        </li>
+    </ul>
+
+    <!-- 필터 -->
+    <form method="get" action="/notifications" class="row g-2 mb-4">
+        <div class="col-auto">
+            <select name="channel" class="form-select form-select-sm">
+                <option value="" th:selected="${channel == ''}">전체 채널</option>
+                <option value="TELEGRAM" th:selected="${channel == 'TELEGRAM'}">TELEGRAM</option>
+                <option value="SLACK" th:selected="${channel == 'SLACK'}">SLACK</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <select name="status" class="form-select form-select-sm">
+                <option value="" th:selected="${status == ''}">전체 상태</option>
+                <option value="SENT" th:selected="${status == 'SENT'}">SENT</option>
+                <option value="SUPPRESSED" th:selected="${status == 'SUPPRESSED'}">SUPPRESSED</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-sm btn-primary">검색</button>
+            <a href="/notifications" class="btn btn-sm btn-outline-secondary ms-1">초기화</a>
+        </div>
+        <div class="col-auto ms-auto text-muted small pt-1">
+            총 <strong th:text="${notifPage.totalElements}">0</strong>건
+        </div>
+    </form>
+
+    <!-- 테이블 -->
+    <div class="table-responsive">
+        <table class="table table-hover table-sm align-middle">
+            <thead class="table-dark">
+            <tr>
+                <th>종목코드</th>
+                <th>종목명</th>
+                <th>시그널 타입</th>
+                <th class="text-center">점수</th>
+                <th class="text-center">채널</th>
+                <th class="text-center">상태</th>
+                <th>억제 사유</th>
+                <th>발송시각 (KST)</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:if="${notifPage.isEmpty()}">
+                <td colspan="8" class="text-center text-muted py-4">데이터가 없습니다.</td>
+            </tr>
+            <tr th:each="n : ${notifPage.content}">
+                <td class="font-monospace" th:text="${n.stockCode}"></td>
+                <td th:text="${n.stockName}"></td>
+                <td>
+                    <span th:each="t, iter : ${#strings.arraySplit(n.signalTypes, ',')}"
+                          th:text="${t}"
+                          class="badge signal-badge"></span>
+                </td>
+                <td class="text-center fw-bold" th:text="${n.score}"
+                    th:classappend="${n.score >= 70} ? ' text-danger' : (${n.score >= 50} ? ' text-warning' : '')">
+                </td>
+                <td class="text-center">
+                    <span th:if="${n.channel == 'TELEGRAM'}" class="badge bg-info text-dark">TELEGRAM</span>
+                    <span th:if="${n.channel == 'SLACK'}" class="badge bg-purple">SLACK</span>
+                    <span th:if="${n.channel != 'TELEGRAM' and n.channel != 'SLACK'}"
+                          class="badge bg-secondary" th:text="${n.channel}"></span>
+                </td>
+                <td class="text-center">
+                    <span th:if="${n.status == 'SENT'}" class="badge bg-success">SENT</span>
+                    <span th:if="${n.status == 'SUPPRESSED'}" class="badge bg-warning text-dark">SUPPRESSED</span>
+                </td>
+                <td class="text-truncate reason-cell"
+                    th:text="${n.suppressReason}"
+                    th:title="${n.suppressReason}">
+                </td>
+                <td class="font-monospace small" th:text="${#temporals.format(n.dispatchedAt, 'MM-dd HH:mm:ss', 'Asia/Seoul')}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 페이지네이션 -->
+    <nav th:if="${notifPage.totalPages > 1}">
+        <ul class="pagination pagination-sm justify-content-center">
+            <li class="page-item" th:classappend="${notifPage.first} ? 'disabled'">
+                <a class="page-link"
+                   th:href="@{/notifications(page=${currentPage - 1}, channel=${channel}, status=${status})}">
+                    이전
+                </a>
+            </li>
+            <li class="page-item" th:each="i : ${#numbers.sequence(0, notifPage.totalPages - 1)}"
+                th:classappend="${i == currentPage} ? 'active'">
+                <a class="page-link"
+                   th:href="@{/notifications(page=${i}, channel=${channel}, status=${status})}"
+                   th:text="${i + 1}"></a>
+            </li>
+            <li class="page-item" th:classappend="${notifPage.last} ? 'disabled'">
+                <a class="page-link"
+                   th:href="@{/notifications(page=${currentPage + 1}, channel=${channel}, status=${status})}">
+                    다음
+                </a>
+            </li>
+        </ul>
+    </nav>
+
+</div>
+</body>
+</html>

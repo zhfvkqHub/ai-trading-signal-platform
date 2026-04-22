@@ -63,11 +63,19 @@
   ├─ signal.detected.dlq   ← 처리 실패 메시지 보관
   └─ raw.*.dlq             ← raw 토픽 처리 실패 메시지 보관
           │
-   ┌──────┼──────────────────┐
-   ▼      ▼                  ▼
-[notification]  [history]  [trade-planning]
-  알림 발송       이력 저장    Shadow Trading
-  Telegram/Slack  MySQL       (실제 주문 없음)
+   ┌──────┘
+   ▼
+[notification-service]
+  알림 발송 (Telegram / Slack)
+  └─ Kafka notification.dispatched 발행 (SENT / SUPPRESSED 이력)
+          │
+   ┌──────┼───────────────────┐
+   ▼      ▼                   ▼
+[history-service]  [signal.detected]  [trade-planning]
+  이력 저장 (MySQL)   (위에서 동시 구독)   Shadow Trading
+  - signal_events                      (실제 주문 없음, 미구현)
+  - notification_logs
+  웹 대시보드 (:8084)
 
    Redis (dedup / TTL / cache / cooldown)
 ```
@@ -105,12 +113,19 @@
 ### 3. notification-service
 - `signal.detected` 토픽 구독
 - 신호 발생 즉시 Telegram / Slack 알림 전송
+- Redis 기반 채널별 쿨다운 / dedup / 속도 제한 적용
+- 발송 결과(SENT / SUPPRESSED)를 `notification.dispatched` 토픽으로 발행
 
 ### 4. history-service
-- 신호 / 알림 / 검증 결과 이력 저장 (MySQL)
-- AI 학습용 데이터 축적
+- `signal.detected`, `signal.rejected`, `notification.dispatched` 토픽 구독
+- MySQL 영구 저장 (`signal_events`, `notification_logs` 테이블)
+- REST API: `GET /api/signals`, `GET /api/notifications` (페이지네이션 + 필터)
+- 웹 대시보드: `http://localhost:8084/signals`, `http://localhost:8084/notifications`
+  - 시그널 목록 탭: 종목 / 타입 / 점수 / DETECTED|REJECTED 상태 / 사유
+  - 알림 내역 탭: 채널 / SENT|SUPPRESSED 상태 / 억제 사유
+  - 30초 자동 갱신
 
-### 5. trade-planning-service
+### 5. trade-planning-service (미구현)
 - 실제 주문 없이 Shadow Trading 기반 계획 생성
 - 향후 자동매매 확장 대비 인터페이스 구현
 
@@ -128,26 +143,39 @@
 ---
 ## Database Schema (MySQL)
 
+### 구현된 테이블 (history-service)
+
 | 테이블 | 설명 |
 |--------|------|
-| `signals` | 생성된 신호 이력 |
-| `signal_reasons` | 신호 발생 근거 (조건별 기여 점수 포함) |
-| `validation_results` | AI 검증 결과 |
-| `alert_history` | 알림 발송 이력 |
-| `news_metadata` | 뉴스 / 공시 메타데이터 |
-| `trade_plans` | Shadow Trading 계획 |
-| `strategy_config` | 전략 파라미터 설정 |
-
-### signal_reasons 상세 스키마
+| `signal_events` | 감지/거부된 시그널 이력 (status: DETECTED \| REJECTED) |
+| `notification_logs` | 알림 발송 이력 (channel: TELEGRAM \| SLACK, status: SENT \| SUPPRESSED) |
 
 ```sql
-signal_reasons
-  ├─ signal_id     -- FK → signals
-  ├─ reason_type   -- VOLUME_SURGE | NEWS_SURGE | AFTER_HOURS | GAP_UP
-  ├─ score         -- 이 조건이 기여한 점수
-  ├─ raw_value     -- 실제 수치 (거래량 배율, 뉴스 건수 등)
-  └─ threshold     -- 탐지 기준값 (AI 학습 시 피처로 활용)
+signal_events
+  ├─ id, stock_code, stock_name
+  ├─ signal_types   -- comma-separated (VOLUME_SURGE, GAP_UP, ...)
+  ├─ score          -- 시그널 점수
+  ├─ status         -- DETECTED | REJECTED
+  ├─ reasons        -- 탐지 사유 (JSON array)
+  ├─ rejection_reason -- 거부 사유
+  └─ event_at, trace_id, created_at
+
+notification_logs
+  ├─ id, stock_code, stock_name
+  ├─ signal_types, score
+  ├─ channel        -- TELEGRAM | SLACK
+  ├─ status         -- SENT | SUPPRESSED
+  ├─ suppress_reason -- 억제 사유 (쿨다운 / dedup / rate-limit)
+  └─ dispatched_at, trace_id, created_at
 ```
+
+### 향후 계획 테이블
+
+| 테이블 | 설명 |
+|--------|------|
+| `validation_results` | AI 검증 결과 |
+| `trade_plans` | Shadow Trading 계획 |
+| `strategy_config` | 전략 파라미터 설정 |
 
 ---
 ## Kafka Topics
@@ -159,10 +187,10 @@ signal_reasons
 | Raw | `raw.after-hours` | 시간외 거래대기 물량 / 갭 데이터 |
 | Signal | `signal.detected` | 탐지된 유효 신호 |
 | Signal | `signal.rejected` | 필터링된 신호 |
+| Notification | `notification.dispatched` | 알림 발송 결과 (SENT \| SUPPRESSED) |
 | DLQ | `raw.*.dlq` | raw 토픽 처리 실패 메시지 |
 | DLQ | `signal.detected.dlq` | 신호 처리 실패 메시지 |
 | Future | `trade.plan` | 자동매매 계획 (예정) |
-| Future | `audit.event` | 감사 로그 (예정) |
 
 ---
 ## Local Development
@@ -173,10 +201,28 @@ signal_reasons
 docker compose up -d
 ```
 
-### 2. Kafka 토픽 생성
+### 2. MySQL DB 설정
+
+`.env` 파일에 DB 자격증명을 입력합니다:
+
+```bash
+DB_ROOT_PASSWORD=secret
+DB_NAME=trading
+DB_USER=trading
+DB_PASSWORD=trading
+```
+
+### 3. Kafka 토픽 생성
 
 ```bash
 ./scripts/kafka/create-topics.sh
+```
+
+### 4. 대시보드 접속
+
+```
+http://localhost:8084/signals       # 시그널 목록
+http://localhost:8084/notifications # 알림 내역
 ```
 
 ---
