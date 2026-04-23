@@ -5,6 +5,11 @@ services:
     image: apache/kafka:4.1.0
     container_name: kafka
     hostname: kafka
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     ports:
       - "29092:29092"
     environment:
@@ -23,13 +28,19 @@ services:
       CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
       KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_LOG_RETENTION_HOURS: 24
-      KAFKA_LOG_SEGMENT_BYTES: 536870912
+      KAFKA_LOG_RETENTION_BYTES: 524288000
+      KAFKA_LOG_SEGMENT_BYTES: 104857600
     volumes:
       - kafka_data:/var/lib/kafka/data
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "2"
     ports:
       - "8989:8080"
     environment:
@@ -41,12 +52,22 @@ services:
   redis:
     image: redis:7
     container_name: redis
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "2"
     ports:
       - "6379:6379"
 
   mysql:
     image: mysql:8
     container_name: mysql
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     ports:
       - "3306:3306"
     environment:
@@ -67,6 +88,8 @@ services:
       context: services/history-service
       dockerfile: Dockerfile
     container_name: history-service
+    logging:
+      driver: "none"
     ports:
       - "8084:8084"
     environment:
