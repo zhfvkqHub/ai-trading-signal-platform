@@ -12,3 +12,7 @@ gradle/
 
 # 로컬 시크릿 설정 파일
 **/application-local.yml
+
+# Python
+venv/
+__pycache__/
